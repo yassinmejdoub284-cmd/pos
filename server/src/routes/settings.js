@@ -150,7 +150,7 @@ router.get('/', async (req, res) => {
     return res.json(fileSettings);
   } catch (error) {
     console.error('Error fetching settings:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -194,7 +194,7 @@ router.put('/', async (req, res) => {
     return res.json(ensureDefaults({ ...(savedDb || {}), ...data }));
   } catch (error) {
     console.error('Error updating settings:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -219,7 +219,7 @@ router.post('/logo', upload.single('logo'), async (req, res) => {
     res.json({ logoUrl });
   } catch (error) {
     console.error('Error uploading logo:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

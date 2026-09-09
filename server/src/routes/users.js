@@ -130,7 +130,7 @@ router.get('/', authenticateToken, async (req, res) => {
     res.json(usersWithDepotIds);
   } catch (error) {
     console.error('Error fetching users:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -152,7 +152,7 @@ router.get('/roles', authenticateToken, async (req, res) => {
     res.json(roleList);
   } catch (error) {
     console.error('Error fetching roles:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -206,7 +206,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json(userWithDepotIds);
   } catch (error) {
     console.error('Error fetching user:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -323,7 +323,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     res.json(userWithDepotIds);
   } catch (error) {
     console.error('Error updating user:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -388,7 +388,7 @@ router.put('/:id/pin', authenticateToken, async (req, res) => {
     res.json(updatedUser);
   } catch (error) {
     console.error('Error updating user pin:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -423,7 +423,7 @@ router.put('/:id/token', authenticateToken, async (req, res) => {
     res.json(updatedUser);
   } catch (error) {
     console.error('Error updating user token:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -526,13 +526,11 @@ router.delete('/:id', authenticateToken, async (req, res) => {
           message: 'Utilisateur désactivé avec succès (l\'utilisateur a des enregistrements associés)' 
         });
       } catch (softDeleteError) {
-        return res.status(500).json({ 
-          error: 'Impossible de supprimer l\'utilisateur car il a des enregistrements associés. Veuillez désactiver l\'utilisateur à la place.' 
-        });
+        return res.status(500).json({ error: 'Impossible de supprimer l\'utilisateur car il a des enregistrements associés. Veuillez désactiver l\'utilisateur à la place.' + (softDeleteError?.message ? ' : ' + softDeleteError.message : ''), code: softDeleteError?.code });
       }
     }
     
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (softDeleteError?.message ? ' : ' + softDeleteError.message : ''), code: softDeleteError?.code });
   }
 });
 

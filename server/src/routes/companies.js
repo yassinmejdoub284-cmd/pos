@@ -20,7 +20,7 @@ router.get('/', async (req, res) => {
     }));
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch companies' });
+    res.status(500).json({ error: 'Failed to fetch companies' + (err?.message ? ' : ' + err.message : ''), code: err?.code });
   }
 });
 
@@ -35,7 +35,7 @@ router.get('/:id', async (req, res) => {
     if (!company) return res.status(404).json({ error: 'Not found' });
     res.json(company);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch company' });
+    res.status(500).json({ error: 'Failed to fetch company' + (err?.message ? ' : ' + err.message : ''), code: err?.code });
   }
 });
 
@@ -82,7 +82,7 @@ router.get('/:id/unassigned-depots', async (req, res) => {
     const depots = await prisma.depot.findMany({ where: { companyId: null } });
     res.json(depots);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch depots' });
+    res.status(500).json({ error: 'Failed to fetch depots' + (err?.message ? ' : ' + err.message : ''), code: err?.code });
   }
 });
 
@@ -135,7 +135,7 @@ router.post('/logo', upload.single('logo'), async (req, res) => {
     const logoUrl = `/uploads/logos/${req.file.filename}`;
     return res.json({ logoUrl });
   } catch (e) {
-    return res.status(500).json({ error: 'Failed to upload logo' });
+    return res.status(500).json({ error: 'Failed to upload logo' + (e?.message ? ' : ' + e.message : ''), code: e?.code });
   }
 });
 
@@ -148,7 +148,7 @@ router.post('/:id/logo', upload.single('logo'), async (req, res) => {
     const updated = await prisma.company.update({ where: { id }, data: { logoUrl } });
     return res.json({ logoUrl, company: updated });
   } catch (e) {
-    return res.status(500).json({ error: 'Failed to upload logo' });
+    return res.status(500).json({ error: 'Failed to upload logo' + (e?.message ? ' : ' + e.message : ''), code: e?.code });
   }
 });
 

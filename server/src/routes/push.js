@@ -12,7 +12,7 @@ router.post('/subscribe', async (req, res) => {
     saveSubscription(subscription);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: 'Failed to save subscription' });
+    res.status(500).json({ error: 'Failed to save subscription' + (e?.message ? ' : ' + e.message : ''), code: e?.code });
   }
 });
 

@@ -326,7 +326,7 @@ router.get('/:clientId/statement', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching client statement:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération du relevé client' });
+    res.status(500).json({ error: 'Erreur lors de la récupération du relevé client' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -508,7 +508,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
     res.json(clientSummaries);
   } catch (error) {
     console.error('Error fetching client statements summary:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération du résumé des relevés clients' });
+    res.status(500).json({ error: 'Erreur lors de la récupération du résumé des relevés clients' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1461,7 +1461,7 @@ router.delete('/statement/transaction', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting statement transaction:', error);
-    res.status(500).json({ error: 'Erreur lors de la suppression de la transaction' });
+    res.status(500).json({ error: 'Erreur lors de la suppression de la transaction' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

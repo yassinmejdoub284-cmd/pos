@@ -78,7 +78,7 @@ router.get('/categories', async (req, res) => {
     res.json(categories);
   } catch (error) {
     console.error('Error fetching expense categories:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des catégories' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des catégories' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -107,7 +107,7 @@ router.post('/categories', authenticateToken, async (req, res) => {
     res.status(201).json(category);
   } catch (error) {
     console.error('Error creating expense category:', error);
-    res.status(500).json({ error: 'Erreur lors de la création de la catégorie' });
+    res.status(500).json({ error: 'Erreur lors de la création de la catégorie' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -137,7 +137,7 @@ router.put('/categories/:id', authenticateToken, async (req, res) => {
     res.json(category);
   } catch (error) {
     console.error('Error updating expense category:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour de la catégorie' });
+    res.status(500).json({ error: 'Erreur lors de la mise à jour de la catégorie' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -166,7 +166,7 @@ router.delete('/categories/:id', authenticateToken, async (req, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting expense category:', error);
-    res.status(500).json({ error: 'Erreur lors de la suppression de la catégorie' });
+    res.status(500).json({ error: 'Erreur lors de la suppression de la catégorie' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -305,7 +305,7 @@ router.get('/', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching expenses:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des dépenses' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des dépenses' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -372,7 +372,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json(expense);
   } catch (error) {
     console.error('Error fetching expense:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération de la dépense' });
+    res.status(500).json({ error: 'Erreur lors de la récupération de la dépense' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -534,7 +534,7 @@ router.post('/', authenticateToken, async (req, res) => {
     res.status(201).json(expense);
   } catch (error) {
     console.error('Error creating expense:', error);
-    res.status(500).json({ error: 'Erreur lors de la création de la dépense' });
+    res.status(500).json({ error: 'Erreur lors de la création de la dépense' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -602,7 +602,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     res.json(expense);
   } catch (error) {
     console.error('Error updating expense:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour de la dépense' });
+    res.status(500).json({ error: 'Erreur lors de la mise à jour de la dépense' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -724,7 +724,7 @@ router.patch('/:id/approve', authenticateToken, async (req, res) => {
     res.json(expense);
   } catch (error) {
     console.error('Error approving expense:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'approbation de la dépense' });
+    res.status(500).json({ error: 'Erreur lors de l\'approbation de la dépense' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -875,7 +875,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     res.json({ message: 'Dépense supprimée avec succès' });
   } catch (error) {
     console.error('Error deleting expense:', error);
-    res.status(500).json({ error: 'Erreur lors de la suppression de la dépense' });
+    res.status(500).json({ error: 'Erreur lors de la suppression de la dépense' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1013,7 +1013,7 @@ router.get('/stats/summary', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching expense statistics:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des statistiques' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des statistiques' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

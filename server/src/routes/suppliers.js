@@ -224,7 +224,7 @@ router.get('/', authenticateToken, async (req, res) => {
     res.json(suppliersWithFinancials);
   } catch (error) {
     console.error('Error fetching suppliers:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des fournisseurs' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des fournisseurs' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -273,7 +273,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json(supplier);
   } catch (error) {
     console.error('Error fetching supplier:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération du fournisseur' });
+    res.status(500).json({ error: 'Erreur lors de la récupération du fournisseur' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -359,7 +359,7 @@ router.post('/', authenticateToken, async (req, res) => {
     res.status(201).json(supplier);
   } catch (error) {
     console.error('Error creating supplier:', error);
-    res.status(500).json({ error: 'Erreur lors de la création du fournisseur' });
+    res.status(500).json({ error: 'Erreur lors de la création du fournisseur' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -420,7 +420,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     res.json(supplier);
   } catch (error) {
     console.error('Error updating supplier:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour du fournisseur' });
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du fournisseur' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -434,7 +434,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting supplier:', error);
-    res.status(500).json({ error: 'Erreur lors de la suppression du fournisseur' });
+    res.status(500).json({ error: 'Erreur lors de la suppression du fournisseur' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -457,7 +457,7 @@ router.patch('/:id/toggle-status', authenticateToken, async (req, res) => {
     res.json(updatedSupplier);
   } catch (error) {
     console.error('Error toggling supplier status:', error);
-    res.status(500).json({ error: 'Erreur lors de la modification du statut du fournisseur' });
+    res.status(500).json({ error: 'Erreur lors de la modification du statut du fournisseur' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1103,7 +1103,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
     res.json(summaries);
   } catch (error) {
     console.error('Error fetching supplier summaries:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des résumés fournisseurs' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des résumés fournisseurs' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1878,7 +1878,7 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching supplier statement:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération du relevé fournisseur' });
+    res.status(500).json({ error: 'Erreur lors de la récupération du relevé fournisseur' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1949,7 +1949,7 @@ router.post('/:id/solde/init', authenticateToken, async (req, res) => {
     res.json(updated);
   } catch (error) {
     console.error('Error initializing supplier solde:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'initialisation du solde' });
+    res.status(500).json({ error: 'Erreur lors de l\'initialisation du solde' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

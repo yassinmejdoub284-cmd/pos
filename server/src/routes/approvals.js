@@ -52,7 +52,7 @@ router.get('/change-requests', authenticateToken, async (req, res) => {
     res.json(enriched);
   } catch (error) {
     console.error('Error fetching change requests:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -79,7 +79,7 @@ router.put('/change-requests/:id/approve', authenticateToken, async (req, res) =
     return res.json(updated);
   } catch (error) {
     console.error('Error approving change request:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -116,7 +116,7 @@ router.put('/change-requests/:id/reject', authenticateToken, async (req, res) =>
     return res.json(updated);
   } catch (error) {
     console.error('Error rejecting change request:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

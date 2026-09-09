@@ -141,7 +141,7 @@ router.get('/', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching clients:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -210,7 +210,7 @@ router.get('/search/pos', authenticateToken, async (req, res) => {
     res.json({ clients });
   } catch (error) {
     console.error('Error searching clients:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -272,7 +272,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json(client);
   } catch (error) {
     console.error('Error fetching client:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -378,7 +378,7 @@ router.post('/', authenticateToken, async (req, res) => {
     if (error.name === 'PrismaClientValidationError') {
       return res.status(400).json({ error: 'Données invalides. Veuillez vérifier les champs requis.' });
     }
-    res.status(500).json({ error: 'Erreur interne du serveur' });
+    res.status(500).json({ error: 'Erreur interne du serveur' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -417,7 +417,7 @@ router.put('/:id', async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Duplicate unique field' });
     }
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -511,7 +511,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
         constraint: constraintName
       });
     }
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -569,7 +569,7 @@ router.get('/search/pos', authenticateToken, async (req, res) => {
     res.json({ clients });
   } catch (error) {
     console.error('Error searching clients:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -634,7 +634,7 @@ router.put('/:id/max-debt/init', async (req, res) => {
     res.json(updatedClient);
   } catch (error) {
     console.error('Error initializing client max debt:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -662,7 +662,7 @@ router.post('/:id/debt/payments', async (req, res) => {
     res.json(updated);
   } catch (error) {
     console.error('Error recording debt payment:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -708,7 +708,7 @@ router.post('/:id/debt/add', authenticateToken, async (req, res) => {
     res.json(updated);
   } catch (error) {
     console.error('Error adding debt transaction:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'ajout du débit au relevé' });
+    res.status(500).json({ error: 'Erreur lors de l\'ajout du débit au relevé' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -773,7 +773,7 @@ router.post('/:id/solde/init', authenticateToken, async (req, res) => {
     res.json(updated);
   } catch (error) {
     console.error('Error initializing client solde:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'initialisation du solde' });
+    res.status(500).json({ error: 'Erreur lors de l\'initialisation du solde' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -798,7 +798,7 @@ router.get('/:id/product-prices', authenticateToken, async (req, res) => {
     res.json(clientPrices);
   } catch (error) {
     console.error('Error fetching client product prices:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des prix clients' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des prix clients' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -847,7 +847,7 @@ router.post('/:id/product-prices', authenticateToken, async (req, res) => {
     res.json({ message: 'Prix clients mis à jour avec succès', count: result.length });
   } catch (error) {
     console.error('Error updating client product prices:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour des prix clients' });
+    res.status(500).json({ error: 'Erreur lors de la mise à jour des prix clients' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

@@ -13,7 +13,7 @@ router.get('/', authenticateToken, async (req, res) => {
     res.json(rules);
   } catch (error) {
     console.error('Error fetching wholesale rules:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -32,7 +32,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json(rule);
   } catch (error) {
     console.error('Error fetching wholesale rule:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -74,7 +74,7 @@ router.post('/', authenticateToken, async (req, res) => {
     res.status(201).json(rule);
   } catch (error) {
     console.error('Error creating wholesale rule:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -126,7 +126,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     res.json(rule);
   } catch (error) {
     console.error('Error updating wholesale rule:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -151,7 +151,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     res.json({ message: 'Wholesale rule deleted successfully' });
   } catch (error) {
     console.error('Error deleting wholesale rule:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -168,7 +168,7 @@ router.put('/:id/archive', authenticateToken, async (req, res) => {
     res.json(rule);
   } catch (error) {
     console.error('Error archiving wholesale rule:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -185,7 +185,7 @@ router.put('/:id/unarchive', authenticateToken, async (req, res) => {
     res.json(rule);
   } catch (error) {
     console.error('Error unarchiving wholesale rule:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

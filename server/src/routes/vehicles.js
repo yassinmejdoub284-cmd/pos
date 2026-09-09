@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
     res.json(vehicles);
   } catch (error) {
     console.error('Error fetching vehicles:', error);
-    res.status(500).json({ error: 'Failed to fetch vehicles' });
+    res.status(500).json({ error: 'Failed to fetch vehicles' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -36,7 +36,7 @@ router.get('/active', async (req, res) => {
     res.json(vehicles);
   } catch (error) {
     console.error('Error fetching active vehicles:', error);
-    res.status(500).json({ error: 'Failed to fetch active vehicles' });
+    res.status(500).json({ error: 'Failed to fetch active vehicles' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -65,7 +65,7 @@ router.get('/search', async (req, res) => {
     res.json(vehicles);
   } catch (error) {
     console.error('Error searching vehicles:', error);
-    res.status(500).json({ error: 'Failed to search vehicles' });
+    res.status(500).json({ error: 'Failed to search vehicles' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -139,7 +139,7 @@ router.post('/', async (req, res) => {
     res.status(201).json(vehicle);
   } catch (error) {
     console.error('Error creating vehicle:', error);
-    res.status(500).json({ error: 'Failed to create vehicle' });
+    res.status(500).json({ error: 'Failed to create vehicle' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -231,7 +231,7 @@ router.put('/:id', async (req, res) => {
     res.json(vehicle);
   } catch (error) {
     console.error('Error updating vehicle:', error);
-    res.status(500).json({ error: 'Failed to update vehicle' });
+    res.status(500).json({ error: 'Failed to update vehicle' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -258,7 +258,7 @@ router.delete('/:id', async (req, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting vehicle:', error);
-    res.status(500).json({ error: 'Failed to delete vehicle' });
+    res.status(500).json({ error: 'Failed to delete vehicle' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -280,7 +280,7 @@ router.get('/brands', async (req, res) => {
     res.json(brandsWithParsedModels);
   } catch (error) {
     console.error('Error fetching vehicle brands:', error);
-    res.status(500).json({ error: 'Failed to fetch vehicle brands' });
+    res.status(500).json({ error: 'Failed to fetch vehicle brands' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -304,7 +304,7 @@ router.get('/brands/active', async (req, res) => {
     res.json(brandsWithParsedModels);
   } catch (error) {
     console.error('Error fetching active vehicle brands:', error);
-    res.status(500).json({ error: 'Failed to fetch active vehicle brands' });
+    res.status(500).json({ error: 'Failed to fetch active vehicle brands' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -333,7 +333,7 @@ router.get('/brands/search', async (req, res) => {
     res.json(brandsWithParsedModels);
   } catch (error) {
     console.error('Error searching vehicle brands:', error);
-    res.status(500).json({ error: 'Failed to search vehicle brands' });
+    res.status(500).json({ error: 'Failed to search vehicle brands' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -362,7 +362,7 @@ router.get('/brands/:id', async (req, res) => {
     res.json(brandWithParsedModels);
   } catch (error) {
     console.error('Error fetching vehicle brand:', error);
-    res.status(500).json({ error: 'Failed to fetch vehicle brand' });
+    res.status(500).json({ error: 'Failed to fetch vehicle brand' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -400,7 +400,7 @@ router.post('/brands', async (req, res) => {
     res.status(201).json(brandWithParsedModels);
   } catch (error) {
     console.error('Error creating vehicle brand:', error);
-    res.status(500).json({ error: 'Failed to create vehicle brand' });
+    res.status(500).json({ error: 'Failed to create vehicle brand' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -453,7 +453,7 @@ router.put('/brands/:id', async (req, res) => {
     res.json(brandWithParsedModels);
   } catch (error) {
     console.error('Error updating vehicle brand:', error);
-    res.status(500).json({ error: 'Failed to update vehicle brand' });
+    res.status(500).json({ error: 'Failed to update vehicle brand' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -496,7 +496,7 @@ router.delete('/brands/:id', async (req, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting vehicle brand:', error);
-    res.status(500).json({ error: 'Failed to delete vehicle brand' });
+    res.status(500).json({ error: 'Failed to delete vehicle brand' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -523,7 +523,7 @@ router.get('/:id', async (req, res) => {
     res.json(vehicle);
   } catch (error) {
     console.error('Error fetching vehicle:', error);
-    res.status(500).json({ error: 'Failed to fetch vehicle' });
+    res.status(500).json({ error: 'Failed to fetch vehicle' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

@@ -231,7 +231,7 @@ router.get('/sales', authenticateToken, async (req, res) => {
     res.json(formattedSales);
   } catch (error) {
     console.error('Error generating sales report:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -329,7 +329,7 @@ router.get('/products', authenticateToken, async (req, res) => {
     res.json(productsWithDetails);
   } catch (error) {
     console.error('Error generating products report:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -370,7 +370,7 @@ router.get('/inventory', authenticateToken, async (req, res) => {
     res.json(inventoryWithDetails);
   } catch (error) {
     console.error('Error generating inventory report:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -445,7 +445,7 @@ router.get('/stock-movements', authenticateToken, async (req, res) => {
     res.json(formattedMovements);
   } catch (error) {
     console.error('Error generating stock movements report:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -682,7 +682,7 @@ router.get('/daily-extracts', async (req, res) => {
     res.json(extracts);
   } catch (error) {
     console.error('Error generating daily extracts:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -808,7 +808,7 @@ router.get('/session-extracts', async (req, res) => {
     res.json(extracts);
   } catch (error) {
     console.error('Error generating session extracts:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -915,7 +915,7 @@ router.get('/session-extracts/:id', authenticateToken, async (req, res) => {
     res.json(detail);
   } catch (error) {
     console.error('Error generating session extract detail:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1114,7 +1114,7 @@ router.get('/article-extracts/:depotId', authenticateToken, async (req, res) => 
     res.json(extracts);
   } catch (error) {
     console.error('Error generating article extracts:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1316,7 +1316,7 @@ router.get('/daily-extracts/:date', async (req, res) => {
     res.json(extractDetail);
   } catch (error) {
     console.error('Error generating daily extract detail:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1474,7 +1474,7 @@ router.get('/daily-extracts/archives', async (req, res) => {
     res.json(extracts);
   } catch (error) {
     console.error('Error generating archive extracts:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1606,7 +1606,7 @@ router.get('/daily-monthly', authenticateToken, async (req, res) => {
     res.json(reports);
   } catch (error) {
     console.error('Error generating daily-monthly report:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1734,7 +1734,7 @@ router.get('/stock-kpis', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error generating stock KPIs:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1787,7 +1787,7 @@ router.get('/stock-sales-chart', authenticateToken, async (req, res) => {
     res.json(chartData);
   } catch (error) {
     console.error('Error generating stock sales chart data:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1830,7 +1830,7 @@ router.get('/stock-movements-chart', authenticateToken, async (req, res) => {
     res.json(chartData);
   } catch (error) {
     console.error('Error generating stock movements chart data:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1909,7 +1909,7 @@ router.get('/stock-top-products', authenticateToken, async (req, res) => {
     res.json(topProducts);
   } catch (error) {
     console.error('Error generating top products:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1986,7 +1986,7 @@ router.get('/stock-top-clients', authenticateToken, async (req, res) => {
     res.json(topClients);
   } catch (error) {
     console.error('Error generating top clients:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2070,7 +2070,7 @@ router.get('/stock-product-analytics', authenticateToken, async (req, res) => {
     res.json(analytics);
   } catch (error) {
     console.error('Error generating product analytics:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2342,7 +2342,7 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error generating dashboard data:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2442,7 +2442,7 @@ router.get('/sales-by-category', authenticateToken, async (req, res) => {
     res.json(reports);
   } catch (error) {
     console.error('Error generating sales by category report:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2516,7 +2516,7 @@ router.get('/purchases-by-category', authenticateToken, async (req, res) => {
     res.json(reports);
   } catch (error) {
     console.error('Error generating purchases by category report:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2668,7 +2668,7 @@ router.get('/credit-sales', authenticateToken, async (req, res) => {
     res.json(formattedReports);
   } catch (error) {
     console.error('Error generating credit sales report:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2813,7 +2813,7 @@ router.get('/client-statement', authenticateToken, async (req, res) => {
     res.json(statement);
   } catch (error) {
     console.error('Error generating client statement:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2910,7 +2910,7 @@ router.get('/supplier-statement', authenticateToken, async (req, res) => {
     res.json(statement);
   } catch (error) {
     console.error('Error generating supplier statement:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2945,7 +2945,7 @@ router.get('/clients', authenticateToken, async (req, res) => {
     res.json(formattedClients);
   } catch (error) {
     console.error('Error fetching clients:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2970,7 +2970,7 @@ router.get('/suppliers', authenticateToken, async (req, res) => {
     res.json(suppliers);
   } catch (error) {
     console.error('Error fetching suppliers:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

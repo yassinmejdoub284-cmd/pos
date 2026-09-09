@@ -70,7 +70,7 @@ router.get('/', authenticateToken, async (req, res) => {
     res.json(payments);
   } catch (error) {
     console.error('Error fetching supplier payments:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des règlements fournisseurs' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des règlements fournisseurs' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -258,7 +258,7 @@ router.post('/', authenticateToken, (req, res, next) => {
     res.status(201).json(paymentWithDetails);
   } catch (error) {
     console.error('Error creating supplier payment:', error);
-    res.status(500).json({ error: 'Erreur lors de la création du règlement fournisseur' });
+    res.status(500).json({ error: 'Erreur lors de la création du règlement fournisseur' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -284,7 +284,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json(payment);
   } catch (error) {
     console.error('Error fetching supplier payment:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération du règlement' });
+    res.status(500).json({ error: 'Erreur lors de la récupération du règlement' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -323,7 +323,7 @@ router.put('/:id', authenticateToken, (req, res, next) => {
     res.json(payment);
   } catch (error) {
     console.error('Error updating supplier payment:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour du règlement' });
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du règlement' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -419,7 +419,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting supplier payment:', error);
-    res.status(500).json({ error: 'Erreur lors de la suppression du règlement' });
+    res.status(500).json({ error: 'Erreur lors de la suppression du règlement' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

@@ -33,7 +33,7 @@ router.get('/', authenticateToken, async (req, res) => {
     res.json(payments);
   } catch (error) {
     console.error('Error fetching client payments:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des règlements clients' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des règlements clients' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -106,7 +106,7 @@ router.post('/', authenticateToken, async (req, res) => {
     res.status(201).json(paymentWithDetails);
   } catch (error) {
     console.error('Error creating client payment:', error);
-    res.status(500).json({ error: 'Erreur lors de la création du règlement client' });
+    res.status(500).json({ error: 'Erreur lors de la création du règlement client' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -132,7 +132,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json(payment);
   } catch (error) {
     console.error('Error fetching client payment:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération du règlement client' });
+    res.status(500).json({ error: 'Erreur lors de la récupération du règlement client' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -148,7 +148,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting client payment:', error);
-    res.status(500).json({ error: 'Erreur lors de la suppression du règlement client' });
+    res.status(500).json({ error: 'Erreur lors de la suppression du règlement client' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

@@ -404,7 +404,7 @@ router.get('/', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching stock documents:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des documents' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des documents' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -569,7 +569,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json(documentWithSupplier);
   } catch (error) {
     console.error('Error fetching stock document:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération du document' });
+    res.status(500).json({ error: 'Erreur lors de la récupération du document' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -811,7 +811,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     res.json(updatedDocument);
   } catch (error) {
     console.error('Error updating document:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -935,7 +935,7 @@ router.post('/expedition', authenticateToken, async (req, res) => {
     res.status(201).json(document);
   } catch (error) {
     console.error('Error creating expedition document:', error);
-    res.status(500).json({ error: 'Erreur lors de la création du document' });
+    res.status(500).json({ error: 'Erreur lors de la création du document' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1161,7 +1161,7 @@ router.post('/prepare-lot', authenticateToken, async (req, res) => {
     res.status(201).json(document);
   } catch (error) {
     console.error('Error preparing lot:', error);
-    res.status(500).json({ error: 'Erreur lors de la préparation du lot' });
+    res.status(500).json({ error: 'Erreur lors de la préparation du lot' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1217,7 +1217,7 @@ router.post('/:id/validate', authenticateToken, async (req, res) => {
     res.json(updatedDocument);
   } catch (error) {
     console.error('Error updating document status:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour du statut' });
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du statut' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1333,7 +1333,7 @@ router.post('/scan', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error scanning barcode:', error);
-    res.status(500).json({ error: 'Erreur lors du scan' });
+    res.status(500).json({ error: 'Erreur lors du scan' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1406,7 +1406,7 @@ router.post('/scan-transfer', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error scanning transfer barcode:', error);
-    res.status(500).json({ error: 'Erreur lors du scan' });
+    res.status(500).json({ error: 'Erreur lors du scan' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1974,7 +1974,7 @@ router.post('/transfer', authenticateToken, async (req, res) => {
     res.status(201).json(document);
   } catch (error) {
     console.error('Error creating transfer document:', error);
-    res.status(500).json({ error: 'Erreur lors de la création du transfert' });
+    res.status(500).json({ error: 'Erreur lors de la création du transfert' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2147,7 +2147,7 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
     res.json(updatedDocument);
   } catch (error) {
     console.error('Error receiving document:', error);
-    res.status(500).json({ error: 'Erreur lors de la réception' });
+    res.status(500).json({ error: 'Erreur lors de la réception' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2503,7 +2503,7 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
     res.json(updatedDocument);
   } catch (error) {
     console.error('Error approving receipt:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'approbation du reçu' });
+    res.status(500).json({ error: 'Erreur lors de l\'approbation du reçu' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2544,7 +2544,7 @@ router.get('/:id/print-labels', authenticateToken, async (req, res) => {
     res.json({ labels, document });
   } catch (error) {
     console.error('Error generating labels:', error);
-    res.status(500).json({ error: 'Erreur lors de la génération des étiquettes' });
+    res.status(500).json({ error: 'Erreur lors de la génération des étiquettes' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2585,7 +2585,7 @@ router.get('/:id/export-pdf', authenticateToken, async (req, res) => {
     res.json(pdfData);
   } catch (error) {
     console.error('Error exporting PDF:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'export PDF' });
+    res.status(500).json({ error: 'Erreur lors de l\'export PDF' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2597,7 +2597,7 @@ router.get('/next-number/:type', authenticateToken, async (req, res) => {
     res.json(numero);
   } catch (error) {
     console.error('Error generating next document number:', error);
-    res.status(500).json({ error: 'Erreur lors de la génération du numéro' });
+    res.status(500).json({ error: 'Erreur lors de la génération du numéro' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2978,7 +2978,7 @@ router.post('/:id/convert-to-delivery', authenticateToken, async (req, res) => {
     res.json(updatedDocument);
   } catch (error) {
     console.error('Error converting document to delivery:', error);
-    res.status(500).json({ error: 'Erreur lors de la conversion du document' });
+    res.status(500).json({ error: 'Erreur lors de la conversion du document' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

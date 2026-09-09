@@ -144,7 +144,7 @@ router.get('/statement', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching cash statement:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération du relevé caisse' });
+    res.status(500).json({ error: 'Erreur lors de la récupération du relevé caisse' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -216,7 +216,7 @@ router.get('/session/:sessionId', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching session cash movements:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des mouvements de caisse' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des mouvements de caisse' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -311,7 +311,7 @@ router.get('/summary', authenticateToken, async (req, res) => {
     res.json(summary);
   } catch (error) {
     console.error('Error fetching cash summary:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération du résumé de caisse' });
+    res.status(500).json({ error: 'Erreur lors de la récupération du résumé de caisse' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

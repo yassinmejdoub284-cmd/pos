@@ -414,7 +414,7 @@ router.post('/temporary', async (req, res) => {
     res.status(201).json(saleWithDetails);
   } catch (error) {
     console.error('Error creating temporary sale:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -670,7 +670,7 @@ router.put('/temporary/:id/advance', async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Error adding advance to temporary sale:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1086,7 +1086,7 @@ router.put('/gift/:id/approve', async (req, res) => {
     res.json(saleWithDetails);
   } catch (error) {
     console.error('Error approving gift sale:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1131,7 +1131,7 @@ router.put('/gift/:id/reject', async (req, res) => {
     res.json(saleWithDetails);
   } catch (error) {
     console.error('Error rejecting gift sale:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1513,7 +1513,7 @@ router.post('/:id/printed', async (req, res) => {
     res.json({ success: true, isPrinted: updated.isPrinted });
   } catch (error) {
     console.error('Error marking sale as printed:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1578,7 +1578,7 @@ router.get('/current-session/tickets', async (req, res) => {
     res.json(ticketsWithNumbers);
   } catch (error) {
     console.error('Error fetching current session tickets:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1675,7 +1675,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json(saleWithNumbers);
   } catch (error) {
     console.error('Error fetching sale:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1888,7 +1888,7 @@ router.put('/:id/status', async (req, res) => {
     res.json({ message: 'Sale status updated successfully', sale: updated });
   } catch (error) {
     console.error('Error updating sale status:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1898,7 +1898,7 @@ router.get('/payment-methods/all', async (req, res) => {
     res.json(methods);
   } catch (error) {
     console.error('Error fetching payment methods:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -2237,7 +2237,7 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
     }
 
     if (!saleWithDetails) {
-      return res.status(500).json({ error: 'Sale created but could not be retrieved' });
+      return res.status(500).json({ error: 'Sale created but could not be retrieved' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
     }
 
     res.status(201).json({ ...saleWithDetails, loyaltyPointsEarned: sale.loyaltyPointsEarned });
@@ -2398,7 +2398,7 @@ router.post('/wholesale', async (req, res) => {
         orderBy: { id: 'asc' }
       });
       if (!defaultDepot) {
-        return res.status(500).json({ error: 'No active depot found. Please contact administrator.' });
+        return res.status(500).json({ error: 'No active depot found. Please contact administrator.' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
       }
       userDepotId = defaultDepot.id;
     } catch (error) {
@@ -2608,7 +2608,7 @@ router.post('/wholesale', async (req, res) => {
     });
 
     if (!saleWithDetails) {
-      return res.status(500).json({ error: 'Sale created but could not be retrieved' });
+      return res.status(500).json({ error: 'Sale created but could not be retrieved' + (e?.message ? ' : ' + e.message : ''), code: e?.code });
     }
 
     res.status(201).json(saleWithDetails);

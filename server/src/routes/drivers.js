@@ -52,7 +52,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching drivers:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -76,7 +76,7 @@ router.get('/active', async (req, res) => {
     res.json(drivers);
   } catch (error) {
     console.error('Error fetching active drivers:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -105,7 +105,7 @@ router.get('/:id', async (req, res) => {
     res.json(driver);
   } catch (error) {
     console.error('Error fetching driver:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -156,7 +156,7 @@ router.post('/', async (req, res) => {
     res.status(201).json(driver);
   } catch (error) {
     console.error('Error creating driver:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -207,7 +207,7 @@ router.put('/:id', async (req, res) => {
     res.json(driver);
   } catch (error) {
     console.error('Error updating driver:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -232,7 +232,7 @@ router.delete('/:id', async (req, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting driver:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

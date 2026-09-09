@@ -48,7 +48,7 @@ router.get('/', authenticateToken, async (req, res) => {
     res.json(families);
   } catch (error) {
     console.error('Error fetching families:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des familles' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des familles' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -75,7 +75,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json(family);
   } catch (error) {
     console.error('Error fetching family:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération de la famille' });
+    res.status(500).json({ error: 'Erreur lors de la récupération de la famille' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -110,7 +110,7 @@ router.post('/', authenticateToken, async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Une famille avec ce nom existe déjà' });
     }
-    res.status(500).json({ error: 'Erreur lors de la création de la famille' });
+    res.status(500).json({ error: 'Erreur lors de la création de la famille' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -148,7 +148,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Une famille avec ce nom existe déjà' });
     }
-    res.status(500).json({ error: 'Erreur lors de la mise à jour de la famille' });
+    res.status(500).json({ error: 'Erreur lors de la mise à jour de la famille' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -205,7 +205,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     res.json({ message: 'Famille supprimée avec succès' });
   } catch (error) {
     console.error('Error deleting family:', error);
-    res.status(500).json({ error: 'Erreur lors de la suppression de la famille' });
+    res.status(500).json({ error: 'Erreur lors de la suppression de la famille' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -241,7 +241,7 @@ router.post('/:id/photo', authenticateToken, upload.single('photo'), async (req,
     });
   } catch (error) {
     console.error('Error uploading family photo:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'upload de la photo' });
+    res.status(500).json({ error: 'Erreur lors de l\'upload de la photo' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -277,7 +277,7 @@ router.delete('/:id/photo', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting family photo:', error);
-    res.status(500).json({ error: 'Erreur lors de la suppression de la photo' });
+    res.status(500).json({ error: 'Erreur lors de la suppression de la photo' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

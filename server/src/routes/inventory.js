@@ -61,7 +61,7 @@ router.get('/count/:depotId', authenticateToken, async (req, res) => {
     res.json(count);
   } catch (error) {
     console.error('Error getting inventory count:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -124,7 +124,7 @@ router.get('/sessions', authenticateToken, async (req, res) => {
     res.json(sessions);
   } catch (error) {
     console.error('Error fetching inventory sessions:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -253,7 +253,7 @@ router.get('/sessions/:id', authenticateToken, async (req, res) => {
     res.json(session);
   } catch (error) {
     console.error('Error fetching inventory session:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -406,7 +406,7 @@ router.post('/sessions', authenticateToken, async (req, res) => {
     res.status(201).json(result);
   } catch (error) {
     console.error('Error creating inventory session:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -471,7 +471,7 @@ router.patch('/sessions/:id/status', authenticateToken, async (req, res) => {
     res.json(updatedSession);
   } catch (error) {
     console.error('Error updating inventory session status:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -539,7 +539,7 @@ router.post('/sessions/:sessionId/items', authenticateToken, async (req, res) =>
     res.status(201).json(newItem);
   } catch (error) {
     console.error('Error creating inventory item:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -697,7 +697,7 @@ router.patch('/sessions/:sessionId/items/:itemId', authenticateToken, async (req
     res.json(result);
   } catch (error) {
     console.error('Error updating inventory item:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -804,7 +804,7 @@ router.delete('/sessions/:sessionId/items/:itemId', authenticateToken, async (re
     res.json({ message: 'Inventory item deleted successfully', item: result });
   } catch (error) {
     console.error('Error deleting inventory item:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1248,7 +1248,7 @@ router.get('/sessions/:id/summary', authenticateToken, async (req, res) => {
     res.json(summary);
   } catch (error) {
     console.error('Error fetching inventory session summary:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1408,7 +1408,7 @@ router.delete('/sessions/:id', authenticateToken, async (req, res) => {
     res.json({ message: 'Inventory session deleted successfully' });
   } catch (error) {
     console.error('Error deleting inventory session:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
     res.json(depots);
   } catch (error) {
     console.error('Error fetching depots:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -48,7 +48,7 @@ router.get('/:id', async (req, res) => {
     res.json(depot);
   } catch (error) {
     console.error('Error fetching depot:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -77,7 +77,7 @@ router.post('/', authenticateToken, async (req, res) => {
     res.status(201).json(newDepot);
   } catch (error) {
     console.error('Error creating depot:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -105,7 +105,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     res.json(updatedDepot);
   } catch (error) {
     console.error('Error updating depot:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -147,7 +147,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     res.json({ success: true, deactivated: false, message: 'Depot supprime definitivement.' });
   } catch (error) {
     console.error('Error deleting depot:', error);
-    res.status(500).json({ error: 'Erreur lors de la suppression du depot' });
+    res.status(500).json({ error: 'Erreur lors de la suppression du depot' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -161,7 +161,7 @@ router.post('/:id/reactivate', authenticateToken, async (req, res) => {
     res.json({ success: true, depot });
   } catch (error) {
     console.error('Error reactivating depot:', error);
-    res.status(500).json({ error: 'Erreur lors de la reactivation du depot' });
+    res.status(500).json({ error: 'Erreur lors de la reactivation du depot' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

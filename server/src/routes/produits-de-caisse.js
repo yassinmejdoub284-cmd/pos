@@ -106,7 +106,7 @@ router.get('/', authenticateToken, async (req, res) => {
     res.json(produitsWithParsedIds);
   } catch (error) {
     console.error('Error fetching produits de caisse:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des produits de caisse' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des produits de caisse' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -166,7 +166,7 @@ router.get('/active', authenticateToken, async (req, res) => {
     res.json(produitsWithParsedIds);
   } catch (error) {
     console.error('Error fetching active produits de caisse:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des produits actifs' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des produits actifs' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -214,7 +214,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json(produitWithParsedIds);
   } catch (error) {
     console.error('Error fetching produit de caisse:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération du produit' });
+    res.status(500).json({ error: 'Erreur lors de la récupération du produit' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -400,7 +400,7 @@ router.post('/', authenticateToken, async (req, res) => {
     res.status(201).json(produitWithParsedIds);
   } catch (error) {
     console.error('Error creating produit de caisse:', error);
-    res.status(500).json({ error: 'Erreur lors de la création du produit' });
+    res.status(500).json({ error: 'Erreur lors de la création du produit' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -579,7 +579,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     res.json(produitWithParsedIds);
   } catch (error) {
     console.error('Error updating produit de caisse:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour du produit' });
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du produit' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -604,7 +604,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting produit de caisse:', error);
-    res.status(500).json({ error: 'Erreur lors de la suppression du produit' });
+    res.status(500).json({ error: 'Erreur lors de la suppression du produit' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -619,7 +619,7 @@ router.post('/upload-image', authenticateToken, upload.single('image'), async (r
     res.json({ imageUrl });
   } catch (error) {
     console.error('Error uploading image:', error);
-    res.status(500).json({ error: 'Erreur lors du téléchargement de l\'image' });
+    res.status(500).json({ error: 'Erreur lors du téléchargement de l\'image' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

@@ -190,7 +190,7 @@ router.get('/', authenticateToken, async (req, res) => {
     res.json(products);
   } catch (error) {
     console.error('Error fetching products:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des produits' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des produits' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -205,7 +205,7 @@ router.get('/familles', authenticateToken, async (req, res) => {
     res.json(familles);
   } catch (error) {
     console.error('Error fetching familles:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des familles' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des familles' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -260,7 +260,7 @@ router.get('/vrac-conversions/:sourceProductId', authenticateToken, async (req, 
     });
   } catch (error) {
     console.error('Error fetching vrac conversions:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des conversions VRAC' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des conversions VRAC' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -385,7 +385,7 @@ router.delete('/vrac-conversions/:id', authenticateToken, async (req, res) => {
     res.json({ success: true, message: 'Conversion VRAC supprimée' });
   } catch (error) {
     console.error('Error deleting vrac conversion:', error);
-    res.status(500).json({ error: 'Erreur lors de la suppression de la conversion VRAC' });
+    res.status(500).json({ error: 'Erreur lors de la suppression de la conversion VRAC' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -645,7 +645,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json(product);
   } catch (error) {
     console.error('Error fetching product:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération du produit' });
+    res.status(500).json({ error: 'Erreur lors de la récupération du produit' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -784,7 +784,7 @@ router.post('/', authenticateToken, async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Code-barres déjà existant' });
     }
-    res.status(500).json({ error: 'Erreur lors de la création du produit' });
+    res.status(500).json({ error: 'Erreur lors de la création du produit' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -816,7 +816,7 @@ router.put('/order', authenticateToken, async (req, res) => {
     res.json({ success: true, message: 'Product order updated successfully' });
   } catch (error) {
     console.error('Error updating product order:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour de l\'ordre des produits' });
+    res.status(500).json({ error: 'Erreur lors de la mise à jour de l\'ordre des produits' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1123,7 +1123,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Code-barres déjà existant' });
     }
-    res.status(500).json({ error: 'Erreur lors de la mise à jour du produit' });
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du produit' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1165,7 +1165,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     res.json({ message: 'Produit supprimé avec succès' });
   } catch (error) {
     console.error('Error deleting product:', error);
-    res.status(500).json({ error: 'Erreur lors de la suppression du produit' });
+    res.status(500).json({ error: 'Erreur lors de la suppression du produit' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1179,7 +1179,7 @@ router.post('/upload-image', authenticateToken, upload.single('image'), async (r
     res.json({ imageUrl });
   } catch (error) {
     console.error('Error uploading image:', error);
-    res.status(500).json({ error: 'Erreur lors du téléchargement de l\'image' });
+    res.status(500).json({ error: 'Erreur lors du téléchargement de l\'image' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1235,7 +1235,7 @@ router.post('/:id/photo', authenticateToken, upload.single('photo'), async (req,
     });
   } catch (error) {
     console.error('Error uploading product photo:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'upload de la photo' });
+    res.status(500).json({ error: 'Erreur lors de l\'upload de la photo' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1274,7 +1274,7 @@ router.delete('/:id/photo', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting product photo:', error);
-    res.status(500).json({ error: 'Erreur lors de la suppression de la photo' });
+    res.status(500).json({ error: 'Erreur lors de la suppression de la photo' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1310,7 +1310,7 @@ router.get('/:id/image/:context?', async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting optimized image:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération de l\'image' });
+    res.status(500).json({ error: 'Erreur lors de la récupération de l\'image' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1320,7 +1320,7 @@ router.post('/generate-barcode', authenticateToken, async (req, res) => {
     res.json({ barcode });
   } catch (error) {
     console.error('Error generating barcode:', error);
-    res.status(500).json({ error: 'Erreur lors de la génération du code-barres' });
+    res.status(500).json({ error: 'Erreur lors de la génération du code-barres' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1425,7 +1425,7 @@ router.post('/bulk-import', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error bulk importing products:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'import en masse' });
+    res.status(500).json({ error: 'Erreur lors de l\'import en masse' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1453,7 +1453,7 @@ router.get('/export/csv', authenticateToken, async (req, res) => {
     res.send(csv);
   } catch (error) {
     console.error('Error exporting products:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'export' });
+    res.status(500).json({ error: 'Erreur lors de l\'export' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

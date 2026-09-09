@@ -469,7 +469,7 @@ router.post('/requests', authenticateToken, async (req, res) => {
     res.status(201).json(created);
   } catch (error) {
     console.error('Error creating return request:', error);
-    res.status(500).json({ error: 'Erreur lors de la création du bon de retour' });
+    res.status(500).json({ error: 'Erreur lors de la création du bon de retour' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -501,7 +501,7 @@ router.get('/requests', authenticateToken, async (req, res) => {
     res.json(requests);
   } catch (error) {
     console.error('Error listing return requests:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    res.status(500).json({ error: 'Erreur serveur' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -691,7 +691,7 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
     res.json(updated);
   } catch (error) {
     console.error('Error approving return request:', error);
-    res.status(500).json({ error: 'Erreur lors du traitement du bon de retour' });
+    res.status(500).json({ error: 'Erreur lors du traitement du bon de retour' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -722,7 +722,7 @@ router.post('/requests/:id/reject', authenticateToken, async (req, res) => {
     res.json(updated);
   } catch (error) {
     console.error('Error rejecting return request:', error);
-    res.status(500).json({ error: 'Erreur lors du rejet du bon de retour' });
+    res.status(500).json({ error: 'Erreur lors du rejet du bon de retour' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -738,7 +738,7 @@ router.get('/rebuts', authenticateToken, async (req, res) => {
     res.json(records);
   } catch (error) {
     console.error('Error listing rebut records:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    res.status(500).json({ error: 'Erreur serveur' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -757,7 +757,7 @@ router.post('/rebuts/:id/archive', authenticateToken, async (req, res) => {
     res.json(updated);
   } catch (error) {
     console.error('Error archiving rebut:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'archivage' });
+    res.status(500).json({ error: 'Erreur lors de l\'archivage' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

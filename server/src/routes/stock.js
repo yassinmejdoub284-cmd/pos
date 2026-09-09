@@ -43,7 +43,7 @@ router.get('/inventory', async (req, res) => {
     res.json(inventoryWithDetails);
   } catch (error) {
     console.error('Error fetching inventory:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -99,7 +99,7 @@ router.post('/adjust', authenticateToken, async (req, res) => {
     res.json({ message: 'Stock adjusted successfully', newQuantity: result.newQuantity });
   } catch (error) {
     console.error('Error adjusting stock:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -176,7 +176,7 @@ router.post('/retour-article', authenticateToken, async (req, res) => {
     res.json({ message: 'Retour article effectué avec succès', result });
   } catch (error) {
     console.error('Error processing retour article:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -229,7 +229,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
     res.json(movements);
   } catch (error) {
     console.error('Error fetching stock movements:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -354,7 +354,7 @@ router.get('/etat-mvt-stock', authenticateToken, async (req, res) => {
     res.json(enrichedMovements);
   } catch (error) {
     console.error('Error fetching ETAT MVT STOCK data:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

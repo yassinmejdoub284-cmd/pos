@@ -77,7 +77,7 @@ router.get('/:id/check', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error checking session:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -133,7 +133,7 @@ router.get('/active', authenticateToken, async (req, res) => {
     res.json(activeSession);
   } catch (error) {
     console.error('Error fetching active session:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -224,7 +224,7 @@ router.get('/active-by-depot', authenticateToken, async (req, res) => {
     res.json(activeSession);
   } catch (error) {
     console.error('Error fetching active session by depot:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -353,7 +353,7 @@ router.post('/open', authenticateToken, async (req, res) => {
     res.status(201).json(session);
   } catch (error) {
     console.error('Error opening session:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -514,7 +514,7 @@ router.post('/open-by-depot', authenticateToken, async (req, res) => {
     res.status(201).json(session);
   } catch (error) {
     console.error('Error opening session by depot:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -582,7 +582,7 @@ router.post('/:id/movements', authenticateToken, async (req, res) => {
     res.status(201).json(movement);
   } catch (error) {
     console.error('Error adding cash movement:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -648,7 +648,7 @@ router.post('/:id/movements/correction', authenticateToken, async (req, res) => 
     res.status(201).json(movement);
   } catch (error) {
     console.error('Error adding correction movement:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -710,7 +710,7 @@ router.get('/:id/summary', authenticateToken, async (req, res) => {
     res.json(summary);
   } catch (error) {
     console.error('Error fetching session summary:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1052,7 +1052,7 @@ router.post('/:id/close', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error closing session:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1162,7 +1162,7 @@ router.get('/', authenticateToken, async (req, res) => {
     res.json(sessions);
   } catch (error) {
     console.error('Error fetching sessions:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1419,7 +1419,7 @@ router.get('/summaries', authenticateToken, async (req, res) => {
     res.json(sessionsWithSummaries);
   } catch (error) {
     console.error('Error fetching session summaries:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1610,7 +1610,7 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
     }
   } catch (error) {
     console.error('Error generating report:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -1736,7 +1736,7 @@ router.post('/:id/reopen', authenticateToken, async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Error reopening session:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 

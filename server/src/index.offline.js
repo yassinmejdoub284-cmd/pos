@@ -44,6 +44,48 @@ const dbTarget = String(process.env.DATABASE_URL || '').replace(/^file:/, '');
 const dataDir  = dbTarget ? path.dirname(dbTarget) : exeDir;
 const template = path.join(exeDir, 'pos_patisserie.template.db');
 
+// ── Journal fichier ────────────────────────────────────────────────────────
+// Le serveur est lance sans fenetre par Tauri : sans ce journal, aucune trace
+// d'erreur n'est recuperable sur le poste du client.
+try {
+  const logDir = path.join(dataDir, 'logs');
+  fs.mkdirSync(logDir, { recursive: true });
+  const d = new Date();
+  const day = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  const logFile = path.join(logDir, `server-${day}.log`);
+  const stream = fs.createWriteStream(logFile, { flags: 'a' });
+  const write = (level, args) => {
+    const line = args.map(a => {
+      if (a instanceof Error) return a.stack || a.message;
+      if (typeof a === 'object') { try { return JSON.stringify(a); } catch { return String(a); } }
+      return String(a);
+    }).join(' ');
+    stream.write(`${new Date().toISOString()} [${level}] ${line}\n`);
+  };
+  for (const level of ['log', 'warn', 'error']) {
+    const original = console[level].bind(console);
+    console[level] = (...args) => { try { write(level.toUpperCase(), args); } catch {} original(...args); };
+  }
+  process.on('uncaughtException',  (e) => console.error('uncaughtException', e));
+  process.on('unhandledRejection', (e) => console.error('unhandledRejection', e));
+  console.log('[offline] Journal :', logFile);
+} catch (e) {
+  console.error('[offline] Journal indisponible :', e.message);
+}
+
+/**
+ * Sous Windows, fs.copyFileSync recopie aussi l'attribut "lecture seule" du
+ * fichier source. Le modele livre dans resources/ est souvent marque ainsi :
+ * la base copiee devient alors non inscriptible et TOUTE ecriture echoue avec
+ * SQLITE_READONLY, alors que la lecture continue de fonctionner (connexion et
+ * listes OK, mais impossible de creer quoi que ce soit).
+ */
+function makeWritable(file) {
+  try { fs.chmodSync(file, 0o666); } catch (e) {
+    console.error('[offline] Impossible de rendre la base inscriptible :', e.message);
+  }
+}
+
 /** Copie recursive d'un dossier (sauvegarde des uploads). */
 function copyDir(src, dest) {
   if (!fs.existsSync(src)) return;
@@ -119,6 +161,7 @@ try {
     } else {
       if (fs.existsSync(template)) {
         fs.copyFileSync(template, dbTarget);
+        makeWritable(dbTarget);
         console.log('[offline] Base reinitialisee depuis le modele.');
       } else {
         console.error('[offline] Modele de base introuvable : la base actuelle est conservee.');
@@ -137,9 +180,25 @@ try {
 if (dbTarget && !fs.existsSync(dbTarget)) {
   if (fs.existsSync(template)) {
     fs.copyFileSync(template, dbTarget);
+    makeWritable(dbTarget);
     console.log('[offline] Base creee depuis le modele :', dbTarget);
   } else {
     console.error('[offline] Modele de base introuvable :', template);
+  }
+}
+
+// ── Controle d'ecriture ────────────────────────────────────────────────────
+// SQLite a besoin d'ecrire la base ET son journal dans le meme dossier.
+if (dbTarget && fs.existsSync(dbTarget)) {
+  makeWritable(dbTarget);
+  try {
+    fs.accessSync(dbTarget, fs.constants.W_OK);
+    const probe = path.join(dataDir, '.write-probe');
+    fs.writeFileSync(probe, 'ok');
+    fs.unlinkSync(probe);
+  } catch (e) {
+    console.error('[offline] BASE NON INSCRIPTIBLE :', dbTarget, '-', e.message);
+    console.error('[offline] Toute creation (produit, vente, famille) echouera.');
   }
 }
 

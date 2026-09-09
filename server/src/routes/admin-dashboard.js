@@ -297,7 +297,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching admin dashboard stats:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des statistiques' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des statistiques' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
@@ -347,7 +347,7 @@ router.get('/cash-flow-stats', authenticateToken, async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching cash flow stats:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des flux de trésorerie' });
+    res.status(500).json({ error: 'Erreur lors de la récupération des flux de trésorerie' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
 
