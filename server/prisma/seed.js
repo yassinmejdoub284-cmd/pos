@@ -227,7 +227,7 @@ async function main() {
         passwordHash: adminPassword,
         pin: '1100',
         firstName: 'Admin',
-        lastName: 'Number One',
+        lastName: 'Samurai',
         role: 'ADMIN',
         depotId: depots[0].id
       }

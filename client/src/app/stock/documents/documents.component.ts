@@ -575,7 +575,7 @@ export class DocumentsComponent implements OnInit {
     }, 0) || 0;
 
     // Get company settings
-    const companyName = this.companySettings?.companyName || 'PATISSERIE TUNISIENNE';
+    const companyName = this.companySettings?.companyName || 'Samurai Food';
     const address = this.companySettings?.companyAddress || '[Adresse de l\'entreprise]';
     const phone = this.companySettings?.companyPhone || '[Téléphone]';
     const email = this.companySettings?.companyEmail || '[Email]';

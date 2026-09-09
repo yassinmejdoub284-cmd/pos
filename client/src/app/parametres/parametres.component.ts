@@ -214,7 +214,7 @@ export class ParametresComponent implements OnInit {
         
         // Ensure basic company info exists with default values
         if (!this.settings.companyName) {
-          this.settings.companyName = 'PATISSERIE TUNISIENNE';
+          this.settings.companyName = 'Samurai Food';
         }
         
         // Ensure printSettings exists with default values including doubleImpression

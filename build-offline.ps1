@@ -1,5 +1,5 @@
 # =============================================================================
-#  build-offline.ps1  -  Full offline .exe build for PoS Number One
+#  build-offline.ps1  -  Full offline .exe build for Samurai Food
 # =============================================================================
 
 $ErrorActionPreference = "Stop"

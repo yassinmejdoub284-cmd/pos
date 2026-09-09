@@ -3983,9 +3983,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Parametres de l'entreprise, utilises pour l'en-tete des factures imprimees. */
+  appSettings: any = null;
+
   loadSettings(): void {
     this.settingsService.getSettings().subscribe({
       next: (settings) => {
+        this.appSettings = settings || null;
         if (settings?.maxDiscountPercent) {
           this.maxDiscountPercent = settings.maxDiscountPercent;
         }
@@ -7298,6 +7302,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   private generateInvoiceHTML(invoice: any): string {
+    // En-tete pris dans Parametres > Entreprise : plus aucun nom code en dur.
+    const st = this.appSettings;
+    const companyName = st?.printSettings?.receiptCompanyName || st?.companyName || 'Samurai Food';
+    const companyAddress = st?.companyAddress || '';
+    const companyPhone = st?.companyPhone || '';
+    const companyEmail = st?.companyEmail || '';
+    const companyMF = st?.companyMF || '';
     const now = new Date();
     const invoiceDate = invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString('fr-FR') : 'N/A';
     const invoiceTime = invoice.createdAt ? new Date(invoice.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
@@ -7464,11 +7475,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
         <div class="container">
           <div class="header">
             <div class="company-info">
-              <div class="title">PÂTISSERIE DELICE</div>
-              <div class="info-row"><span class="label">Adresse:</span> 123 Rue de la Patisserie, Tunis, Tunisie</div>
-              <div class="info-row"><span class="label">Téléphone:</span> +216 71 123 456</div>
-              <div class="info-row"><span class="label">Email:</span> contact@patisseriedelice.tn</div>
-              <div class="info-row"><span class="label">Matricule Fiscal:</span> 12345678/A/M/000</div>
+              <div class="title">${companyName}</div>
+              ${companyAddress ? `<div class="info-row"><span class="label">Adresse:</span> ${companyAddress}</div>` : ''}
+              ${companyPhone ? `<div class="info-row"><span class="label">Téléphone:</span> ${companyPhone}</div>` : ''}
+              ${companyEmail ? `<div class="info-row"><span class="label">Email:</span> ${companyEmail}</div>` : ''}
+              ${companyMF ? `<div class="info-row"><span class="label">Matricule Fiscal:</span> ${companyMF}</div>` : ''}
             </div>
             <div class="invoice-info">
               <div class="subtitle">FACTURE</div>
