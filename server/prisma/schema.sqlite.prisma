@@ -90,6 +90,7 @@ model Depot {
   userDepots          UserDepot[]
   users               User[]                @relation("DepotUsers")
   productAssignments  ProductDepot[]
+  produitDeCaisseAssignments ProduitDeCaisseDepot[]
   productDepotPrices  ProductDepotPrice[]
 
   @@index([companyId])
@@ -262,6 +263,21 @@ model ProductDepotPrice {
   @@map("product_depot_prices")
 }
 
+model ProduitDeCaisseDepot {
+  id                Int             @id @default(autoincrement())
+  produitDeCaisseId Int             @map("produit_de_caisse_id")
+  depotId           Int             @map("depot_id")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  depot             Depot           @relation(fields: [depotId], references: [id], onDelete: Cascade)
+  produitDeCaisse   ProduitDeCaisse @relation(fields: [produitDeCaisseId], references: [id], onDelete: Cascade)
+
+  @@unique([produitDeCaisseId, depotId])
+  @@index([produitDeCaisseId])
+  @@index([depotId])
+  @@map("produit_de_caisse_depots")
+}
+
 model ProduitDeCaisse {
   id                 Int           @id @default(autoincrement())
   name               String
@@ -290,6 +306,7 @@ model ProduitDeCaisse {
   tva                Decimal       @default(19.00)
   unite              String        @default("pcs")
   parentProductId    Int?          @map("parent_product_id")
+  depotAssignments   ProduitDeCaisseDepot[]
   famille            ProductFamily @relation(fields: [familleId], references: [id])
   originalProduct    Product?      @relation("OriginalProduitDeCaisse", fields: [originalProductId], references: [id])
   parentProduct      Product?      @relation("SubProducts", fields: [parentProductId], references: [id])

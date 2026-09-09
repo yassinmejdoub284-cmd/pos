@@ -69,6 +69,9 @@ router.get('/', authenticateToken, async (req, res) => {
         isActive: true
       },
       include: {
+        depotAssignments: {
+          include: { depot: true }
+        },
         famille: {
           select: {
             id: true,
@@ -135,6 +138,9 @@ router.get('/active', authenticateToken, async (req, res) => {
         isActive: true
       },
       include: {
+        depotAssignments: {
+          include: { depot: true }
+        },
         famille: true,
         parentProduct: {
           select: {
@@ -196,6 +202,9 @@ router.get('/:id', authenticateToken, async (req, res) => {
         id: parseInt(id)
       },
       include: {
+        depotAssignments: {
+          include: { depot: true }
+        },
         famille: true
       }
     });
@@ -324,16 +333,15 @@ router.post('/', authenticateToken, async (req, res) => {
       ? productIds.map(id => parseInt(id)).filter(id => !isNaN(id))
       : [];
 
-    // Check if name already exists for any of the selected depots
+    // Nom deja utilise dans l'un des depots selectionnes ?
     const existingProduits = await prisma.produitDeCaisse.findMany({
-      where: { 
+      where: {
         name,
         depotAssignments: {
-          some: {
-            depotId: { in: depotIdsInt }
-          }
+          some: { depotId: { in: depotIdsInt } }
         }
-      }
+      },
+      select: { id: true }
     });
 
     if (existingProduits.length > 0) {
@@ -344,6 +352,12 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const produit = await prisma.produitDeCaisse.create({
       data: {
+        // Depots auxquels ce regroupement est rattache. Sans cette ligne les
+        // depotIds recus etaient valides puis ignores, et assignedDepots
+        // restait vide dans toutes les reponses.
+        depotAssignments: {
+          create: depotIdsInt.map(depotId => ({ depotId }))
+        },
         name,
         designation_legale,
         description,
@@ -370,6 +384,9 @@ router.post('/', authenticateToken, async (req, res) => {
         isActive,
       },
       include: {
+        depotAssignments: {
+          include: { depot: true }
+        },
         famille: true,
         parentProduct: {
           select: {
@@ -551,6 +568,19 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (productIds !== undefined) updateData.productIds = JSON.stringify(productIdsArray);
     if (isActive !== undefined) updateData.isActive = isActive;
 
+    // Synchronisation des depots : on remplace la liste si elle est fournie.
+    if (Array.isArray(depotIds)) {
+      const nextDepotIds = depotIds.map(d => parseInt(d)).filter(d => !isNaN(d));
+      updateData.depotAssignments = {
+        deleteMany: { depotId: { notIn: nextDepotIds.length ? nextDepotIds : [-1] } },
+        upsert: nextDepotIds.map(depotId => ({
+          where: { produitDeCaisseId_depotId: { produitDeCaisseId: parseInt(id), depotId } },
+          create: { depotId },
+          update: {}
+        }))
+      };
+    }
+
     // Update the product first
     await prisma.produitDeCaisse.update({
       where: { id: parseInt(id) },
@@ -565,6 +595,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const produit = await prisma.produitDeCaisse.findUnique({
       where: { id: parseInt(id) },
       include: {
+        depotAssignments: {
+          include: { depot: true }
+        },
         famille: true
       }
     });
