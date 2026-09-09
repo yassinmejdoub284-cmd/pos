@@ -1616,7 +1616,8 @@ export class PrintService {
       }
     }
 
-    text += centerAlign + this.rule('=') + '\n';
+    // Retour a gauche : sans cela toutes les lignes suivantes restaient centrees.
+    text += leftAlign + this.rule('=');
 
     // Sale info
     text += `Date: ${date}     Heure: ${time}\n`;
@@ -1631,7 +1632,7 @@ export class PrintService {
       }
     }
 
-    text += '------------------\n';
+    text += this.rule('-');
 
     // Format currency based on settings
     const currencySymbol = settings?.printSettings?.currencySymbol || 'dt';
@@ -1810,7 +1811,7 @@ export class PrintService {
       }
     }
 
-    text += centerAlign + this.rule('=') + '\n';
+    text += leftAlign + this.rule('=');
 
     // Numéro de Ticket
     text += leftAlign + 'Numéro de Ticket\n';
