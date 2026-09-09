@@ -5,6 +5,8 @@ const SETTINGS_FILE = path.join((process.pkg ? path.dirname(process.execPath) : 
 
 function ensureDefaults(data = {}) {
   return {
+    // Conserver tout champ inconnu deja enregistre (evite toute perte silencieuse)
+    ...data,
     companyName: data.companyName || 'Samurai Food',
     logoUrl: data.logoUrl || '/logo_sfax.webp',
     // Company details
@@ -43,6 +45,7 @@ function ensureDefaults(data = {}) {
     allowNegativeStock: typeof data.allowNegativeStock === 'boolean' ? data.allowNegativeStock : false,
     // Print settings
     printSettings: {
+      ...(data.printSettings || {}),
       showLogo: typeof data.printSettings?.showLogo === 'boolean' ? data.printSettings.showLogo : true,
       logoSize: data.printSettings?.logoSize || 'medium',
       dateFormat: data.printSettings?.dateFormat || 'dd/mm/yyyy',

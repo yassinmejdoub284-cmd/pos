@@ -245,6 +245,13 @@ export class ParametresComponent implements OnInit {
           if (this.settings.printSettings.doubleImpression === undefined) {
             this.settings.printSettings.doubleImpression = true;
           }
+          // En-tete configurable : garantir des chaines (sinon ngModel casse le binding)
+          if (typeof this.settings.printSettings.receiptCompanyName !== 'string') {
+            this.settings.printSettings.receiptCompanyName = '';
+          }
+          if (typeof this.settings.printSettings.receiptDepotName !== 'string') {
+            this.settings.printSettings.receiptDepotName = '';
+          }
         }
         
         // Ensure devicesConfig exists with default values
