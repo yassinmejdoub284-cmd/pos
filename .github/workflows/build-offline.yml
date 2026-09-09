@@ -12,6 +12,9 @@ on:
       - "desktop/**"
       - "build-offline.ps1"
 
+permissions:
+  contents: write   # necessaire pour publier l'installeur dans une Release
+
 jobs:
   build:
     # windows-latest has no Smart App Control / Application Control policy,
@@ -40,16 +43,42 @@ jobs:
         shell: pwsh
         run: .\build-offline.ps1
 
-      - name: Upload installer artifact
+      # L'installeur est publie dans une Release : contrairement aux artefacts,
+      # les Releases ne consomment pas le quota de stockage d'Actions, le lien
+      # est permanent et directement partageable au client.
+      - name: Publier l'installeur dans une Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $exe = Get-ChildItem "desktop/src-tauri/target/release/bundle/nsis/*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw "Installeur introuvable dans bundle/nsis/" }
+          $tag = "build-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+          Write-Host "Publication de $($exe.Name) dans la release $tag"
+          gh release create $tag "$($exe.FullName)" --title "Samurai Food - $tag" --notes "Build automatique du commit ${{ github.sha }}" --latest
+          Write-Host "Telechargement : https://github.com/${{ github.repository }}/releases/latest"
+
+      # Artefact conserve en secours, sans faire echouer le build si le quota
+      # de stockage est atteint.
+      - name: Upload installer artifact (secours)
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: pos-patisserie-installer
           path: desktop/src-tauri/target/release/bundle/nsis/*.exe
-          if-no-files-found: error
+          if-no-files-found: warn
+          retention-days: 1
+          compression-level: 0
 
-      - name: Upload pos-server.exe (for debugging without the installer)
+      # pos-server.exe pese ~150 Mo et n'est utile que pour deboguer le sidecar.
+      # Desormais televerse uniquement sur demande explicite (workflow_dispatch),
+      # pas a chaque push.
+      - name: Upload pos-server.exe (debug, sur demande uniquement)
+        if: github.event_name == 'workflow_dispatch'
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: pos-server-exe
           path: desktop/resources/pos-server.exe
           if-no-files-found: warn
+          retention-days: 1
