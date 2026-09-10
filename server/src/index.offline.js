@@ -86,6 +86,30 @@ function makeWritable(file) {
   }
 }
 
+/**
+ * Remet les parametres applicatifs a zero apres l'installation d'une nouvelle
+ * version. Le fichier est simplement supprime : le serveur le regenere avec
+ * les valeurs par defaut au premier acces. Les logos televerses sont vides
+ * aussi, sinon l'ancienne enseigne reste affichee.
+ */
+function resetSettingsFile() {
+  const uploads = path.join(exeDir, 'uploads');
+  const settingsFile = path.join(uploads, 'app-settings.json');
+  try {
+    if (fs.existsSync(settingsFile)) {
+      fs.rmSync(settingsFile, { force: true });
+      console.log('[offline] Parametres remis a zero :', settingsFile);
+    }
+    const logos = path.join(uploads, 'logos');
+    if (fs.existsSync(logos)) {
+      fs.rmSync(logos, { recursive: true, force: true });
+      console.log('[offline] Logos televerses supprimes :', logos);
+    }
+  } catch (e) {
+    console.error('[offline] Remise a zero des parametres impossible :', e.message);
+  }
+}
+
 /** Copie recursive d'un dossier (sauvegarde des uploads). */
 function copyDir(src, dest) {
   if (!fs.existsSync(src)) return;
@@ -166,6 +190,14 @@ try {
       } else {
         console.error('[offline] Modele de base introuvable : la base actuelle est conservee.');
       }
+
+      // Les parametres ne vivent pas dans la base mais dans uploads/app-settings.json.
+      // Sans cette remise a zero, le nom de societe, le logo et les reglages
+      // d'impression du client precedent survivaient a l'installation : la base
+      // repartait vierge mais l'entete affichait toujours l'ancienne enseigne.
+      // La sauvegarde ci-dessus contient deja une copie de tout le dossier uploads.
+      resetSettingsFile();
+
       fs.writeFileSync(installedFile, shipped, 'utf-8');
     }
   } else if (shipped && !installed) {

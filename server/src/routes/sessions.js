@@ -26,6 +26,11 @@ function isSuperAdmin(userId) {
 }
 
 // Diagnostic route to check session existence (admin only)
+// Types de depots autorises a tenir une caisse. Le client (caisse.component)
+// accepte SHOP et MAIN : le serveur doit accepter les memes, sinon l'ouverture
+// automatique de session echoue pour un utilisateur rattache au depot principal.
+const SESSION_DEPOT_TYPES = ['SHOP', 'MAIN', 'BRANCH'];
+
 router.get('/:id/check', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -245,7 +250,7 @@ router.post('/open', authenticateToken, async (req, res) => {
       // Admin can specify depot, but must be valid
       if (depotId) {
         const requestedDepot = await prisma.depot.findFirst({
-          where: { id: parseInt(depotId), isActive: true, type: 'SHOP' }
+          where: { id: parseInt(depotId), isActive: true, type: { in: SESSION_DEPOT_TYPES } }
         });
         if (requestedDepot) {
           targetDepotId = requestedDepot.id;
@@ -255,7 +260,7 @@ router.post('/open', authenticateToken, async (req, res) => {
       } else if (!userDepotId) {
         // Admin without depot assignment - find first active SHOP depot
         const defaultDepot = await prisma.depot.findFirst({
-          where: { isActive: true, type: 'SHOP' }, orderBy: { id: 'asc' }
+          where: { isActive: true, type: { in: SESSION_DEPOT_TYPES } }, orderBy: { id: 'asc' }
         });
         if (defaultDepot) {
           targetDepotId = defaultDepot.id;
@@ -380,7 +385,7 @@ router.post('/open-by-depot', authenticateToken, async (req, res) => {
       // Admin can specify depot, but must be valid
       if (depotId) {
         const requestedDepot = await prisma.depot.findFirst({
-          where: { id: parseInt(depotId), isActive: true, type: 'SHOP' }
+          where: { id: parseInt(depotId), isActive: true, type: { in: SESSION_DEPOT_TYPES } }
         });
         if (requestedDepot) {
           targetDepotId = requestedDepot.id;
@@ -390,7 +395,7 @@ router.post('/open-by-depot', authenticateToken, async (req, res) => {
       } else if (!targetDepotId) {
         // Admin without depot assignment - find first active SHOP depot
         const defaultDepot = await prisma.depot.findFirst({
-          where: { isActive: true, type: 'SHOP' }, orderBy: { id: 'asc' }
+          where: { isActive: true, type: { in: SESSION_DEPOT_TYPES } }, orderBy: { id: 'asc' }
         });
         if (defaultDepot) {
           targetDepotId = defaultDepot.id;
@@ -413,7 +418,7 @@ router.post('/open-by-depot', authenticateToken, async (req, res) => {
         // Allow if user has no depot assigned but valid depot is requested
         else if (!userDepotId) {
           const requestedDepot = await prisma.depot.findFirst({
-            where: { id: requestedDepotId, isActive: true, type: 'SHOP' }
+            where: { id: requestedDepotId, isActive: true, type: { in: SESSION_DEPOT_TYPES } }
           });
           if (requestedDepot) {
             targetDepotId = requestedDepotId;
@@ -428,7 +433,7 @@ router.post('/open-by-depot', authenticateToken, async (req, res) => {
       } else if (!targetDepotId) {
         // User without depot assignment - find first active SHOP depot
         const defaultDepot = await prisma.depot.findFirst({
-          where: { isActive: true, type: 'SHOP' }, orderBy: { id: 'asc' }
+          where: { isActive: true, type: { in: SESSION_DEPOT_TYPES } }, orderBy: { id: 'asc' }
         });
         if (defaultDepot) {
           targetDepotId = defaultDepot.id;
