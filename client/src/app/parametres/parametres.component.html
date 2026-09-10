@@ -1,7 +1,7 @@
 <div class="min-h-screen bg-gradient-to-br from-amber-50 via-blue-50 to-purple-50 p-4 md:p-6">
   <div class="max-w-7xl mx-auto">
     <div
-      class="sticky top-0 z-10 -mx-4 md:-mx-6 px-4 md:px-6 py-3 supports-[backdrop-filter]:bg-white/70 bg-white/95 border-b border-gray-200 mb-4 md:mb-6">
+      class="sticky top-0 z-10 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white border-b border-gray-200 mb-4 md:mb-6">
       <div class="max-w-7xl mx-auto flex items-center justify-between">
         <div class="flex items-center gap-3">
           <a routerLink="/parametres" title="Retour paramètres"
@@ -16,7 +16,7 @@
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <button (click)="save()" [disabled]="saving"
+          <button (click)="save()" [disabled]="saving || loading"
             class="px-4 py-2 bg-pink-600 text-white rounded-lg disabled:opacity-50">
             <span *ngIf="!saving">Enregistrer</span>
             <span *ngIf="saving" class="flex items-center">
@@ -418,6 +418,23 @@
               prix), le second pour la cuisine (produits et quantités uniquement, sans prix)</p>
           </div>
         </div>
+
+        <section *ngIf="showSection('impression')" class="bg-white rounded-xl border border-cyan-200 p-4 shadow-sm">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div>
+              <h3 class="text-lg font-semibold text-gray-800">Aperçu du ticket</h3>
+              <p class="text-sm text-gray-600">L’aperçu suit vos modifications. Enregistrez pour les appliquer aux prochaines impressions.</p>
+            </div>
+            <button type="button" (click)="testSavedReceipt()" [disabled]="saving || loading || testingReceipt"
+              class="px-4 py-2 bg-pink-600 text-white rounded-lg disabled:opacity-50">Tester le ticket enregistré</button>
+            <button type="button" (click)="printTestReceipt()" [disabled]="saving || loading || testingReceipt"
+              class="px-4 py-2 border border-pink-600 text-pink-700 rounded-lg disabled:opacity-50">Imprimer le ticket de test</button>
+          </div>
+          <p class="text-xs text-gray-500 mb-3">Exemple fictif · aucune vente créée · impression sur votre imprimante locale.</p>
+          <p class="text-sm font-semibold mb-3" [class.text-green-700]="previewUsesSavedSettings">{{ previewUsesSavedSettings ? 'Ticket des paramètres enregistrés' : 'Aperçu des modifications en cours' }}</p>
+          <iframe title="Aperçu dynamique du ticket" sandbox="allow-same-origin" [srcdoc]="receiptPreviewHtml"
+            style="display:block;width:100%;height:780px;border:1px solid #e5e7eb;border-radius:12px;background:white"></iframe>
+        </section>
 
         <!-- Document Type Defaults -->
         <div *ngIf="showSection('documents')"

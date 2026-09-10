@@ -218,6 +218,16 @@ export class SettingsService {
    */
   getAbsoluteLogoUrl(logoUrl: string | undefined): string {
     if (!logoUrl) return '';
+    if (logoUrl.startsWith('data:image/') || logoUrl.startsWith('blob:')) return logoUrl;
+    const api = new URL(environment.apiUrl);
+    if (environment.production && ['localhost', '127.0.0.1', '[::1]'].includes(api.hostname)) {
+      // The desktop build reads bundled logos from Tauri and uploads from the local sidecar.
+      // Legacy remote URLs must never make an offline receipt depend on Internet access.
+      const local = new URL(logoUrl, window.location.origin);
+      if (local.pathname.startsWith('/uploads/')) return api.origin + local.pathname;
+      const bundledPath = /^\/logo(?:_[a-z]+)?\.webp$/i.test(local.pathname) ? local.pathname : '/logo_default.webp';
+      return new URL(bundledPath, window.location.origin).href;
+    }
     if (logoUrl.startsWith('http')) return logoUrl;
     
     // Handle different server configurations

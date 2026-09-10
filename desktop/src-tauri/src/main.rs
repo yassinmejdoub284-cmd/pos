@@ -143,8 +143,27 @@ fn build_receipt(text: &str) -> Vec<u8> {
 }
 
 #[tauri::command]
-fn print_text_direct(_app_handle: tauri::AppHandle, text: String) -> Result<(), String> {
-    send_raw_to_printer(Some("Xprinter XP-80"), &build_receipt(&text))
+fn print_text_direct(_app_handle: tauri::AppHandle, text: String, logo_data_base64: Option<String>) -> Result<(), String> {
+    use base64::Engine as _;
+    let mut data = escpos_prefix();
+    if let Some(encoded) = logo_data_base64 {
+        let logo = base64::engine::general_purpose::STANDARD.decode(encoded).map_err(|e| e.to_string())?;
+        if logo.len() < 8 || logo[..4] != [0x1d, 0x76, 0x30, 0] {
+            return Err("Invalid receipt logo raster".into());
+        }
+        let width_bytes = u16::from_le_bytes([logo[4], logo[5]]) as usize;
+        let height = u16::from_le_bytes([logo[6], logo[7]]) as usize;
+        if width_bytes == 0 || width_bytes > 32 || height == 0 || height > 256 || logo.len() != 8 + width_bytes * height {
+            return Err("Invalid receipt logo dimensions".into());
+        }
+        data.extend_from_slice(&[0x1b, 0x61, 1]);
+        data.extend_from_slice(&logo);
+        data.extend_from_slice(&[0x0a, 0x1b, 0x61, 0]);
+    }
+    data.extend_from_slice(&to_cp1252(&text));
+    data.extend_from_slice(b"\n\n\n\n");
+    data.extend_from_slice(&[0x1D, 0x56, 0x42, 0]);
+    send_raw_to_printer(Some("Xprinter XP-80"), &data)
 }
 
 #[tauri::command]

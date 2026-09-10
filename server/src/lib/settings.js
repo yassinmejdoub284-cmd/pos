@@ -50,13 +50,13 @@ function ensureDefaults(data = {}) {
       logoSize: data.printSettings?.logoSize || 'medium',
       dateFormat: data.printSettings?.dateFormat || 'dd/mm/yyyy',
       timeFormat: data.printSettings?.timeFormat || '24h',
-      currencySymbol: data.printSettings?.currencySymbol || 'dt',
+      currencySymbol: data.printSettings?.currencySymbol ?? 'dt',
       currencyPosition: data.printSettings?.currencyPosition || 'after',
       customTexts: {
-        thankYouMessage: data.printSettings?.customTexts?.thankYouMessage || 'Merci de votre visite!',
-        receiptTitle: data.printSettings?.customTexts?.receiptTitle || 'REÇU DE VENTE',
-        companySlogan: data.printSettings?.customTexts?.companySlogan || '',
-        footerMessage: data.printSettings?.customTexts?.footerMessage || 'Merci pour votre fidélité'
+        thankYouMessage: data.printSettings?.customTexts?.thankYouMessage ?? 'Merci de votre visite!',
+        receiptTitle: data.printSettings?.customTexts?.receiptTitle ?? 'REÇU DE VENTE',
+        companySlogan: data.printSettings?.customTexts?.companySlogan ?? '',
+        footerMessage: data.printSettings?.customTexts?.footerMessage ?? 'Merci pour votre fidélité'
       },
       // En-tete des tickets de caisse, saisi dans Parametres > Impression.
       // Sans ces deux lignes, ensureDefaults les effacait a chaque sauvegarde.

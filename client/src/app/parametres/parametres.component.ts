@@ -1,3 +1,6 @@
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { firstValueFrom } from 'rxjs';
+import { Sale } from '../core/models/sale.model';
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs/operators';
@@ -145,8 +148,55 @@ export class ParametresComponent implements OnInit {
     public settingsService: SettingsService,
     private printService: PrintService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private sanitizer: DomSanitizer
   ) {}
+
+  receiptPreviewHtml: SafeHtml = '';
+  private previewKey = '';
+  testingReceipt = false;
+  previewUsesSavedSettings = false;
+  readonly testSale: Sale = {
+    id: 9999, dailyTicketNumber: 'TEST', createdAt: new Date(), updatedAt: new Date(),
+    total: 16, tax: 0, discount: 1.5, finalTotal: 14.5, status: 'COMPLETED', cashierId: 0,
+    paymentType: 'COMPTANT', paymentMethod: { id: 0, name: 'Espèces', type: 'CASH', isActive: true },
+    client: { firstName: 'Client', lastName: 'Test', code: 'TEST' },
+    items: [
+      { id: 1, saleId: 9999, productId: 0, productName: 'Croissant au beurre', quantity: 2, unitPrice: 3.5, total: 7, discount: 0 },
+      { id: 2, saleId: 9999, productId: 0, productName: 'Tarte aux amandes', quantity: 1, unitPrice: 9, total: 9, discount: 0 }
+    ]
+  };
+
+  ngDoCheck(): void {
+    if (!this.showSection('impression')) return;
+    const key = JSON.stringify(this.settings);
+    if (key === this.previewKey) return;
+    this.previewKey = key;
+    this.previewUsesSavedSettings = false;
+    this.receiptPreviewHtml = this.sanitizer.bypassSecurityTrustHtml(this.printService.buildReceiptPreviewHtml(this.testSale, this.settings));
+  }
+
+  async testSavedReceipt(): Promise<void> {
+    this.testingReceipt = true;
+    try {
+      const saved = await firstValueFrom(this.settingsService.getSettings());
+      this.receiptPreviewHtml = this.sanitizer.bypassSecurityTrustHtml(this.printService.buildReceiptPreviewHtml(this.testSale, saved));
+      this.previewUsesSavedSettings = true;
+      this.showAlertMessage('Ticket de test chargé avec les paramètres enregistrés.', 'success');
+    } catch {
+      this.showAlertMessage('Impossible de lire les paramètres enregistrés. Vérifiez que le service local est démarré.', 'error');
+    } finally { this.testingReceipt = false; }
+  }
+
+  async printTestReceipt(): Promise<void> {
+    this.testingReceipt = true;
+    try {
+      await this.printService.printSaleReceipt(this.testSale);
+      this.showAlertMessage('Ticket de test envoyé à l’imprimante.', 'success');
+    } catch {
+      this.showAlertMessage('Impression impossible. Vérifiez l’imprimante locale. Un ticket déjà sorti ne sera pas réimprimé automatiquement.', 'error');
+    } finally { this.testingReceipt = false; }
+  }
 
   ngOnInit(): void {
     this.load();
@@ -548,9 +598,9 @@ export class ParametresComponent implements OnInit {
         
         // Show success toast and navigate back
         this.showAlertMessage('Paramètres enregistrés avec succès.', 'success');
-        setTimeout(() => {
-          this.navigateBack();
-        }, 1500);
+        if (!this.showSection('impression')) {
+          setTimeout(() => this.navigateBack(), 1500);
+        }
       },
       error: (error) => {
         this.saving = false;

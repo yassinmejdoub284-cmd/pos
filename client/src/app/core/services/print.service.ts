@@ -1,3 +1,5 @@
+import { firstValueFrom } from 'rxjs';
+import { renderReceiptHtml, renderReceiptText, encodeReceiptLogo, receiptLogoPixels } from './receipt-renderer';
 import { Injectable } from '@angular/core';
 import { ZReportData } from '../models/session.model';
 import { Sale } from '../models/sale.model';
@@ -417,43 +419,29 @@ export class PrintService {
     });
   }
 
-  printSaleReceipt(sale: Sale, options?: { openPreviewOnly?: boolean }): void {
-    this.settingsService.getSettings().subscribe({
-      next: async (settings) => {
-        // Double impression TOUJOURS active : 1 ticket client + 1 ticket cuisine.
-        // Volontairement non configurable (exigence fast-food).
-        const doublePrint = true;
-
-        // Check if desktop version is enabled
-        if (settings?.isDesktopVersion) {
-          // Use Tauri direct printing with text format
-          // Cash drawer command is already included in text (same as web mode)
-          const text = this.buildSaleReceiptText(sale, settings);
-          try {
-            await this.printPlainTextDesktop(text);
-
-            // Deuxieme exemplaire : ticket CUISINE, sans prix, pour la preparation.
-            if (doublePrint) {
-              const kitchenText = this.buildKitchenTicketText(sale, settings);
-              setTimeout(async () => {
-                await this.printPlainTextDesktop(kitchenText);
-              }, 500);
-            }
-          } catch (error) {
-            console.error('Tauri print failed, falling back to web print:', error);
-            this.printReceiptInBrowser(sale, settings, doublePrint);
-          }
-        } else {
-          // Use browser window printing with HTML format
-          this.printReceiptInBrowser(sale, settings, doublePrint);
-        }
-      },
-      error: () => {
-        // Fallback to default settings if error
-        const text = this.buildSaleReceiptText(sale, null);
-        this.printPlainTextWeb(text);
+  async printSaleReceipt(sale: Sale, options?: { openPreviewOnly?: boolean }): Promise<void> {
+    // Reserve the preview during the click so browser popup blockers do not discard it.
+    const preview = options?.openPreviewOnly ? window.open('', '_blank', 'width=440,height=800') : null;
+    try {
+      const settings = await firstValueFrom(this.settingsService.getSettings());
+      const doublePrint = settings.printSettings?.doubleImpression !== false;
+      if (options?.openPreviewOnly) {
+        if (!preview) throw new Error('Veuillez autoriser les fenêtres de ticket');
+        this.printReceiptInBrowser(sale, settings, doublePrint, preview, true);
+        return;
       }
-    });
+      if (settings.isDesktopVersion && '__TAURI_INTERNALS__' in window) {
+        const logoDataBase64 = await this.receiptLogo(settings);
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('print_text_direct', { text: this.buildSaleReceiptText(sale, settings), logoDataBase64 });
+        // Await the second job: a failure must not silently reprint the client ticket.
+        if (doublePrint) await this.printPlainTextDesktop(this.buildKitchenTicketText(sale, settings));
+      } else this.printReceiptInBrowser(sale, settings, doublePrint);
+    } catch (error) {
+      if (preview) preview.close();
+      console.error('Impression du ticket impossible:', error);
+      throw error;
+    }
   }
 
   // Print invoice (different from regular receipt)
@@ -541,60 +529,24 @@ export class PrintService {
     }
   }
 
-  // Browser printing method
-  private printReceiptInBrowser(sale: Sale, settings?: AppSettings | null, doublePrint: boolean = false): void {
-    const printOnce = () => {
-      // Create a new window for printing
-      const printWindow = window.open('', '_blank', 'width=400,height=600');
-
-      if (!printWindow) {
-        console.error('Could not open print window');
-        return;
-      }
-
-      // Use the existing HTML receipt builder
-      const htmlContent = this.buildSaleReceiptHtml(sale, settings);
-
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-
-      let hasPrinted = false;
-
-      // Wait for content to load, then print - but don't auto-close
-      printWindow.onload = () => {
-        // Give more time for content to render, especially on tablets
-        setTimeout(() => {
-          if (!hasPrinted) {
-            printWindow.print();
-            hasPrinted = true;
-          }
-        }, 500);
-      };
-
-      // Fallback: if onload doesn't fire, try after a longer delay
-      setTimeout(() => {
-        if (printWindow && !printWindow.closed && !hasPrinted) {
-          try {
-            printWindow.print();
-            hasPrinted = true;
-          } catch (error) {
-            console.error('Print failed:', error);
-          }
-        }
-      }, 1000);
-    };
-
-    // Print first time
-    printOnce();
-
-    // Print second time if double print is enabled
-    if (doublePrint) {
-      setTimeout(() => {
-        printOnce();
-      }, 1000);
+  // One document, with a page break before the optional kitchen copy.
+  private printReceiptInBrowser(sale: Sale, settings?: AppSettings | null, doublePrint = false, existingWindow?: Window, previewOnly = false): void {
+    const printWindow = existingWindow || window.open('', '_blank', 'width=440,height=800');
+    if (!printWindow) throw new Error('Veuillez autoriser les fenêtres de ticket');
+    const html = doublePrint ? this.buildReceiptPreviewHtml(sale, settings) : this.buildSaleReceiptHtml(sale, settings);
+    printWindow.document.write(html);
+    printWindow.document.close();
+    if (previewOnly) {
+      const button = printWindow.document.createElement('button');
+      button.textContent = 'Imprimer ce ticket';
+      button.className = 'no-print';
+      button.onclick = () => printWindow.print();
+      printWindow.document.body.prepend(button);
+    } else {
+      void Promise.all(Array.from(printWindow.document.images).map(img => img.decode().catch(() => undefined)))
+        .then(() => { if (!printWindow.closed) printWindow.print(); });
     }
   }
-
 
   // --- Helpers ---
   private stringToBytes(input: string): Uint8Array {
@@ -1319,614 +1271,52 @@ export class PrintService {
     return escpos;
   }
 
-  // Build a simple, thermal-style HTML receipt for a sale
   buildSaleReceiptHtml(sale: Sale, settings?: AppSettings | null): string {
-    const createdAt = new Date(sale.createdAt);
-    const date = createdAt.toLocaleDateString('fr-FR');
-    const time = createdAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-
-    const itemsRows = (sale.items || [])
-      .map(item => {
-        const unit = Number(item.unitPrice || 0).toFixed(3);
-        const qty = Number(item.quantity || 0).toString();
-        const total = Number(item.total || 0).toFixed(3);
-        const name = (item.productName || '').toString();
-
-        if (item.isWholesale && item.bundlePrice) {
-          const bundleQty = Number(item.bundleQuantity || 0);
-          const bundlePrice = Number(item.bundlePrice || 0);
-          const bundleSize = Number(item.bundleSize || 1);
-          const qtyFormatted = bundleQty % 1 === 0 ? bundleQty.toString() : bundleQty.toFixed(2);
-          return `
-            <tr>
-              <td class="name">${this.escapeHtml(name)}<br><small style="color: #8b5cf6; font-weight: bold;">GROS</small></td>
-              <td class="price" style="text-align:right">${qtyFormatted}</td>
-              <td class="price" style="text-align:right">${bundlePrice.toFixed(3)}/f</td>
-              <td class="total" style="text-align:right">${total}</td>
-            </tr>
-          `;
-        } else {
-          const qtyFormatted = Number(qty) % 1 === 0 ? qty : Number(qty).toFixed(2);
-          return `
-            <tr>
-              <td class="name">${this.escapeHtml(name)}</td>
-              <td class="price" style="text-align:right">${qtyFormatted}</td>
-              <td class="price" style="text-align:right">${unit}</td>
-              <td class="total" style="text-align:right">${total}</td>
-            </tr>
-          `;
-        }
-      })
-      .join('');
-
-    const discount = Number(sale.discount || 0);
-    const subtotal = Number((sale.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0));
-    // Use finalTotal from database as TOTAL A PAYER
-    const totalAPayer = Number(sale.finalTotal || subtotal - discount);
-    const payment = sale.paymentMethod?.name || '—';
-    const clientName = sale.client ? `${sale.client.firstName} ${sale.client.lastName}` : '';
-    // Check if it's a credit payment or temporary sale - explicitly check for CREDIT type or TEMPORARY status
-    const isCredit = sale.paymentType === 'CREDIT';
-    const isTemporary = sale.status === 'TEMPORARY';
-    // Get advancePayment from database (montant payé maintenant)
-    const montantPayeMaintenant = sale.advancePayment !== undefined && sale.advancePayment !== null ? Number(sale.advancePayment) : 0;
-    // Calculate remaining amount: TOTAL A PAYER - Montant payé maintenant
-    const resteAPayer = Math.max(0, totalAPayer - montantPayeMaintenant);
-    const advancePaymentMethod = sale.advancePaymentMethod?.name || '';
-
-    // Generate logo HTML if enabled
-    let logoHtml = '';
-    if (settings?.printSettings?.showLogo && settings?.logoUrl) {
-      const logoSize = settings.printSettings.logoSize || 'medium';
-      const logoUrl = this.settingsService.getAbsoluteLogoUrl(settings.logoUrl);
-
-      let logoWidth = '60px';
-      if (logoSize === 'large') logoWidth = '80px';
-      else if (logoSize === 'small') logoWidth = '40px';
-
-      logoHtml = `
-        <div class="center" style="margin-bottom: 10px;">
-          <img src="${logoUrl}" alt="Company Logo" style="max-width: ${logoWidth}; height: auto; max-height: 60px;" />
-        </div>
-      `;
-    }
-
-    const companyName = settings?.companyName || 'Samurai Food';
-    const companyAddress = settings?.companyAddress || '';
-    const companyPhone = settings?.companyPhone || '';
-
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Reçu Vente #${this.getTicketNumberForPrint(sale)}</title>
-          <style>
-            @page { margin: 0 !important; }
-            body { 
-              font-family: 'Courier New', monospace; 
-              margin: 0; 
-              padding: 8px; 
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-            .ticket { width: 300px; margin: 0 auto; font-weight: bold; }
-            .center { text-align: center; }
-            .line { border-top: 1px dashed #000; margin: 8px 0; }
-            .double-line { border-top: 2px solid #000; margin: 8px 0; }
-            table { width: 100%; border-collapse: collapse; }
-            td { font-size: 12px; padding: 2px 0; }
-            td.name { width: 45%; }
-            td.qty { display: none; }
-            td.price { width: 22%; text-align: right; padding-right: 8px; }
-            td.total { width: 33%; text-align: right; }
-            .muted { color: #444; }
-            .bold { font-weight: bold; }
-            @media print {
-              body { margin: 0; padding: 4px; }
-              .ticket { width: 100%; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="ticket">
-            ${logoHtml}
-            <div class="center bold">${this.escapeHtml(companyName)}</div>
-            ${companyAddress ? `<div class="center muted">${this.escapeHtml(companyAddress)}</div>` : ''}
-            ${companyPhone ? `<div class="center muted">${this.escapeHtml(companyPhone)}</div>` : ''}
-            <div class="double-line"></div>
-            <div>Date: ${date} &nbsp;&nbsp; Heure: ${time}</div>
-            ${clientName ? `<div>Client: ${this.escapeHtml(clientName)}</div>` : ''}
-            <div>Ticket: #${this.getTicketNumberForPrint(sale)}</div>
-            ${this.isWholesaleSale(sale) ? '<div style="color: #8b5cf6; font-weight: bold; text-align: center;">VENTE GROS</div>' : ''}
-            <div class="line"></div>
-            <table>
-              <thead>
-                <tr>
-                  <td class="bold">ARTICLE</td>
-                  <td class="bold" style="text-align:right">QTE</td>
-                  <td class="bold" style="text-align:right">P.U.</td>
-                  <td class="bold" style="text-align:right">TOTAL</td>
-                </tr>
-              </thead>
-              <tbody>
-                ${itemsRows}
-              </tbody>
-            </table>
-            <div class="line"></div>
-            <table>
-              <tr><td class="bold">Sous-total</td><td style="text-align:right" class="bold">${subtotal.toFixed(3)} dt</td></tr>
-              ${discount > 0 ? `<tr><td>Remise</td><td style="text-align:right">-${discount.toFixed(3)} dt</td></tr>` : ''}
-              <tr><td class="bold">TOTAL A PAYER</td><td style="text-align:right" class="bold">${totalAPayer.toFixed(3)} dt</td></tr>
-              ${(isCredit || isTemporary) && montantPayeMaintenant > 0 ? `<tr><td>Avance payée${advancePaymentMethod ? ` (${this.escapeHtml(advancePaymentMethod)})` : ''}</td><td style="text-align:right">${montantPayeMaintenant.toFixed(3)} dt</td></tr>` : ''}
-              ${(isCredit || isTemporary) && resteAPayer > 0 ? `<tr><td class="bold">Reste à payer</td><td style="text-align:right" class="bold">${resteAPayer.toFixed(3)} dt</td></tr>` : ''}
-              <tr><td>Paiement</td><td style="text-align:right">${this.escapeHtml(payment)}</td></tr>
-            </table>
-            <div class="line"></div>
-            <div class="center">Merci de votre visite!</div>
-          </div>
-        </body>
-      </html>
-    `;
+    return renderReceiptHtml(sale, settings, this.settingsService.getAbsoluteLogoUrl(settings?.logoUrl));
   }
 
-
-  /** Largeur utile d'un ticket 80mm en police A. */
-  private readonly TICKET_WIDTH = 48;
-
-  /** Une ligne "libelle .......... valeur" alignee sur la largeur du ticket. */
-  private padLine(left: string, right: string, width = this.TICKET_WIDTH): string {
-    const l = (left || '').toString();
-    const r = (right || '').toString();
-    const space = width - l.length - r.length;
-    return space > 0 ? l + ' '.repeat(space) + r : (l + ' ' + r).slice(0, width);
-  }
-
-  /** Trait plein sur toute la largeur du ticket. */
-  private rule(ch: string = '-', width = this.TICKET_WIDTH): string {
-    return ch.repeat(width) + '\n';
-  }
-
-  /**
-   * En-tete commun a tous les tickets de caisse (80 mm / 48 colonnes).
-   * Le nom de l'entreprise est imprime CENTRE, en GRAS, en double largeur et
-   * double hauteur, avec double frappe pour un noir plus dense.
-   * Au-dela de 24 caracteres la double largeur ne tient pas sur 48 colonnes :
-   * on retombe alors sur la double hauteur seule pour eviter la troncature.
-   * Le nom du depot est facultatif : imprime seulement s'il est renseigne.
-   */
-  private buildTicketHeader(settings: AppSettings | null): string {
-    const ESC = '\x1B';
-    const centerAlign  = ESC + '\x61\x01';
-    const leftAlign    = ESC + '\x61\x00';
-    const boldOn       = ESC + '\x45\x01';
-    const boldOff      = ESC + '\x45\x00';
-    const dblStrikeOn  = ESC + '\x47\x01'; // double frappe : caracteres plus noirs
-    const dblStrikeOff = ESC + '\x47\x00';
-    const normalSize   = ESC + '\x21\x00';
-    const sizeXL       = ESC + '\x21\x38'; // double largeur + double hauteur + gras
-    const sizeL        = ESC + '\x21\x18'; // double hauteur + gras
-    const sizeM        = ESC + '\x21\x08'; // gras (hauteur normale)
-
-    // Libelles saisis dans Parametres > Impression, independants du nom de
-    // societe de l'application : une caisse peut imprimer un nom different.
-    const headerName = this.sanitizeForThermalPrinter(
-      settings?.printSettings?.receiptCompanyName || settings?.companyName || 'Samurai Food'
-    );
-    const headerDepot = this.sanitizeForThermalPrinter(
-      settings?.printSettings?.receiptDepotName || ''
-    );
-
-    let text = '';
-    text += this.rule('=');
-
-    if (headerName) {
-      const size = headerName.length <= 24 ? sizeXL : sizeL;
-      text += centerAlign + dblStrikeOn + boldOn + size
-            + headerName
-            + normalSize + boldOff + dblStrikeOff + '\n';
-    }
-
-    if (headerDepot) {
-      text += centerAlign + boldOn + sizeL + headerDepot + normalSize + boldOff + '\n';
-    }
-
-    // Coordonnees : centrees et en gras, hauteur normale.
-    if (settings?.printSettings?.showCompanyDetails !== false) {
-      if (settings?.companyAddress) {
-        text += centerAlign + sizeM + this.sanitizeForThermalPrinter(settings.companyAddress) + normalSize + '\n';
-      }
-      if (settings?.companyPhone) {
-        text += centerAlign + sizeM + this.sanitizeForThermalPrinter(settings.companyPhone) + normalSize + '\n';
-      }
-      if (settings?.companyEmail) {
-        text += centerAlign + sizeM + this.sanitizeForThermalPrinter(settings.companyEmail) + normalSize + '\n';
-      }
-    }
-
-    // Retour a gauche : sans cela toutes les lignes suivantes restent centrees.
-    text += leftAlign + this.rule('=');
-    return text;
-  }
-
-  /**
-   * Ticket CUISINE : produits et quantites uniquement, aucun prix.
-   * Imprime en deuxieme exemplaire pour la preparation de la commande.
-   */
-  buildKitchenTicketText(sale: Sale, settings: AppSettings | null): string {
-    const ESC = '\x1B';
-    const centerAlign = ESC + '\x61\x01';
-    const leftAlign   = ESC + '\x61\x00';
-    const boldOn      = ESC + '\x45\x01';
-    const boldOff     = ESC + '\x45\x00';
-    const normalSize  = ESC + '\x21\x00';
-    const bigSize     = ESC + '\x21\x10'; // double hauteur : lisible en cuisine
-
-    const createdAt = new Date(sale.createdAt);
-    const time = createdAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-
-    let text = '';
-    text += this.rule('=');
-    text += centerAlign + bigSize + boldOn + 'CUISINE' + boldOff + normalSize + '\n';
-    text += this.rule('=');
-    text += leftAlign + this.padLine(`Ticket: #${this.getTicketNumberForPrint(sale)}`, `Heure: ${time}`) + '\n';
-    text += this.rule('-');
-
-    let totalUnits = 0;
-    (sale.items || []).forEach(item => {
-      const name = this.sanitizeForThermalPrinter((item.productName || '').toString());
-      const qty = Number(item.quantity || 0);
-      totalUnits += qty;
-      const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
-      // Quantite en gros caracteres, puis le nom du produit.
-      text += leftAlign + bigSize + `${qtyFormatted.padStart(2, ' ')}  ${name}` + normalSize + '\n';
-    });
-
-    text += this.rule('-');
-    text += leftAlign + this.padLine('Total articles', totalUnits % 1 === 0 ? totalUnits.toString() : totalUnits.toFixed(2)) + '\n';
-    text += this.rule('=');
-    text += '\n';
-    return text;
+  buildKitchenTicketHtml(sale: Sale, settings?: AppSettings | null): string {
+    return renderReceiptHtml(sale, settings, '', true);
   }
 
   buildSaleReceiptText(sale: Sale, settings: AppSettings | null): string {
-    const createdAt = new Date(sale.createdAt);
-    const isWholesale = this.isWholesaleSale(sale);
-
-    // For wholesale sales, use the detailed ticket format
-    if (isWholesale) {
-      return this.buildWholesaleReceiptText(sale, settings, createdAt);
+    let text = renderReceiptText(sale, settings);
+    if (settings?.devicesConfig?.enableDrawer !== false && sale.paymentMethod?.type === 'CASH') {
+      text += '\x1b\x70\x00\x19\xfa';
     }
-
-    // For regular sales, use the standard format
-    // Format date and time based on settings
-    const dateFormat = settings?.printSettings?.dateFormat || 'dd/mm/yyyy';
-    const timeFormat = settings?.printSettings?.timeFormat || '24h';
-
-    let date: string;
-    let time: string;
-
-    if (dateFormat === 'dd/mm/yyyy') {
-      date = createdAt.toLocaleDateString('fr-FR');
-    } else if (dateFormat === 'mm/dd/yyyy') {
-      date = createdAt.toLocaleDateString('en-US');
-    } else {
-      date = createdAt.toISOString().split('T')[0];
-    }
-
-    if (timeFormat === '12h') {
-      time = createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    } else {
-      time = createdAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    }
-
-    let text = '';
-
-    // ESC/POS commands for formatting
-    const ESC = '\x1B';
-    const centerAlign = ESC + '\x61\x01'; // Center alignment
-    const leftAlign = ESC + '\x61\x00';   // Left alignment
-    const boldOn = ESC + '\x45\x01';      // Bold on
-    const boldOff = ESC + '\x45\x00';     // Bold off
-    const normalSize = ESC + '\x21\x00';  // Normal size
-    const monospaceFont = ESC + '\x4D\x00'; // Select font A (monospace)
-    const resetFont = ESC + '\x40';       // Initialize printer (resets font)
-    const noTopMargin = ESC + '\x4C\x00\x00'; // Set top margin to 0
-    const noBottomMargin = ESC + '\x4E\x00\x00'; // Set bottom margin to 0
-
-    // Eliminate margins and set monospace font
-    text += noTopMargin + noBottomMargin + monospaceFont;
-
-    text += this.buildTicketHeader(settings);
-
-    // Sale info
-    text += `Date: ${date}     Heure: ${time}\n`;
-    // Extract just the ticket number part (without session ID) for printing
-    text += `Ticket: #${this.getTicketNumberForPrint(sale)}\n`;
-
-    // Client info (if enabled in settings) - sanitized for thermal printer
-    if (settings?.printSettings?.showClientInfo) {
-      const clientName = sale.client ? `${sale.client.firstName} ${sale.client.lastName}` : '';
-      if (clientName) {
-        text += `Client: ${this.sanitizeForThermalPrinter(clientName)}\n`;
-      }
-    }
-
-    text += this.rule('-');
-
-    // Format currency based on settings
-    const currencySymbol = settings?.printSettings?.currencySymbol || 'dt';
-    const currencyPosition = settings?.printSettings?.currencyPosition || 'after';
-
-    const formatCurrency = (amount: number) => {
-      // Round to 3 decimal places maximum and remove trailing zeros
-      const rounded = Math.round(amount * 1000) / 1000;
-      const formatted = rounded.toString();
-      return currencyPosition === 'before' ? `${currencySymbol} ${formatted}` : `${formatted} ${currencySymbol}`;
-    };
-
-    // Items header
-    text += leftAlign + boldOn + 'Articles' + boldOff + '\n';
-    text += this.rule('-');
-
-    // Items - sanitized for thermal printer
-    (sale.items || []).forEach(item => {
-      const name = this.sanitizeForThermalPrinter((item.productName || '').toString());
-      const qty = Number(item.quantity || 0);
-      const unit = Number(item.unitPrice || 0);
-      const total = Number(item.total || 0);
-
-      if (item.isWholesale) {
-        const bundleQty = Number(item.bundleQuantity || 0);
-        const bundleSize = Number(item.bundleSize || 1);
-        const totalUnits = bundleQty * bundleSize;
-
-        // Format quantity: show as integer if whole number, otherwise 2 decimals
-        const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
-
-        text += `${name}\n`;
-        text += this.padLine(`  ${qtyFormatted} x ${unit.toFixed(2)} Gros`, `${total.toFixed(2)} dt`) + '\n';
-        if (bundleQty > 0 && bundleSize > 0) {
-          text += `  Lot: ${bundleQty} x ${bundleSize} = ${totalUnits} u.\n`;
-        }
-      } else {
-        // Regular item format
-        // Format quantity: show as integer if whole number, otherwise 2 decimals
-        const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
-
-        text += `${name}\n`;
-        text += this.padLine(`  ${qtyFormatted} x ${unit.toFixed(2)}`, `${total.toFixed(2)} dt`) + '\n';
-      }
-      text += '\n';
-    });
-
-    text += this.rule('-') + '\n';
-
-    // Totals
-    const discount = Number(sale.discount || 0);
-    const subtotal = Number((sale.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0));
-    // Use finalTotal from database as TOTAL
-    const total = Number(sale.finalTotal || subtotal - discount);
-
-    text += leftAlign + this.padLine('Sous-total', `${subtotal.toFixed(2)} dt`) + '\n';
-    if (discount > 0) {
-      if (settings?.printSettings?.showDiscountDetails !== false) {
-      text += leftAlign + this.padLine('Remise', `-${discount.toFixed(2)} dt`) + '\n';
-    }
-    }
-    text += leftAlign + boldOn + this.padLine('TOTAL A PAYER', `${total.toFixed(2)} dt`) + boldOff + '\n';
-
-    // Advance payment (acompte) and remaining balance for temporary sales
-    const advancePayment = sale.advancePayment !== undefined && sale.advancePayment !== null ? Number(sale.advancePayment) : 0;
-    if (advancePayment > 0) {
-      text += leftAlign + `Avance payée: ${advancePayment.toFixed(2)} dt`;
-      if (sale.advancePaymentMethod) {
-        text += ` (${this.sanitizeForThermalPrinter(sale.advancePaymentMethod.name)})`;
-      }
-      text += '\n';
-      const remainingBalance = total - advancePayment;
-      if (remainingBalance > 0) {
-        text += leftAlign + boldOn + `Reste à payer: ${remainingBalance.toFixed(2)} dt` + boldOff + '\n';
-      }
-    }
-
-    text += this.rule('-');
-
-    // Payment section
-    const showPay = settings?.printSettings?.showPaymentMethod !== false;
-    if (showPay) text += leftAlign + boldOn + 'Paiement' + boldOff + '\n';
-
-    // Type et methode de paiement : masques si le reglage est decoche.
-    if (showPay) {
-      const paymentTypeText = this.getPaymentTypeTextForPrint(sale.paymentType || 'COMPTANT', sale.status);
-      text += leftAlign + this.padLine('Type', this.sanitizeForThermalPrinter(paymentTypeText)) + '\n';
-      if (sale.paymentMethod) {
-        text += leftAlign + this.padLine('Methode', this.sanitizeForThermalPrinter(sale.paymentMethod.name)) + '\n';
-      } else if (sale.status === 'TEMPORARY') {
-        text += leftAlign + this.padLine('Methode', '-') + '\n';
-      }
-    }
-
-    text += this.rule('=');
-
-    // Custom thank you message from settings - sanitized for thermal printer
-    const thankYouMessage = this.sanitizeForThermalPrinter(settings?.printSettings?.customTexts?.thankYouMessage || 'Merci de votre visite!');
-    text += centerAlign + thankYouMessage + '\n\n\n\n\n\n';
-
-    // La coupe et l'avance papier sont ajoutees cote Rust (build_receipt),
-    // sinon le ticket etait coupe deux fois.
-
-    // Open cash drawer for cash payments (espèces) - same logic for web and desktop
-    const isCashPayment = sale.paymentType === 'COMPTANT' ||
-      (sale.paymentMethod && (
-        sale.paymentMethod.id === 1 ||
-        sale.paymentMethod.name?.toLowerCase().includes('espèces') ||
-        sale.paymentMethod.name?.toLowerCase().includes('especes') ||
-        sale.paymentMethod.name?.toLowerCase().includes('cash')
-      ));
-
-    if (isCashPayment) {
-      // ESC/POS command to open cash drawer: ESC p 0 25 250
-      text += ESC + '\x70\x00\x19\xFA';
-    }
-
     return text;
   }
 
-  // Build detailed receipt text for wholesale sales (matching ticket details modal format)
-  private buildWholesaleReceiptText(sale: Sale, settings: AppSettings | null, createdAt: Date): string {
-    let text = '';
+  buildKitchenTicketText(sale: Sale, settings: AppSettings | null): string {
+    return renderReceiptText(sale, settings, true);
+  }
 
-    // ESC/POS commands for formatting
-    const ESC = '\x1B';
-    const centerAlign = ESC + '\x61\x01'; // Center alignment
-    const leftAlign = ESC + '\x61\x00';   // Left alignment
-    const boldOn = ESC + '\x45\x01';      // Bold on
-    const boldOff = ESC + '\x45\x00';     // Bold off
-    const normalSize = ESC + '\x21\x00';  // Normal size
-    const monospaceFont = ESC + '\x4D\x00'; // Select font A (monospace)
-    const noTopMargin = ESC + '\x4C\x00\x00'; // Set top margin to 0
-    const noBottomMargin = ESC + '\x4E\x00\x00'; // Set bottom margin to 0
+  buildReceiptPreviewHtml(sale: Sale, settings?: AppSettings | null): string {
+    const html = this.buildSaleReceiptHtml(sale, settings);
+    if (settings?.printSettings?.doubleImpression === false) return html;
+    const kitchen = this.buildKitchenTicketHtml(sale, settings).match(/<article[\s\S]*<\/article>/)?.[0] || '';
+    return html.replace('</body>', kitchen + '</body>');
+  }
 
-    // Eliminate margins and set monospace font
-    text += noTopMargin + noBottomMargin + monospaceFont;
-
-    text += this.buildTicketHeader(settings);
-
-    // Numéro de Ticket
-    text += leftAlign + 'Numéro de Ticket\n';
-    text += leftAlign + `#${this.getTicketNumberForPrint(sale)}\n`;
-
-    // Status
-    const statusText = this.getStatusTextForPrint(sale.status || 'COMPLETED');
-    text += leftAlign + `${statusText}\n\n`;
-
-    // Client info
-    if (sale.client) {
-      const clientName = `${sale.client.firstName} ${sale.client.lastName}`;
-      text += leftAlign + 'Client\n';
-      text += leftAlign + `${this.sanitizeForThermalPrinter(clientName)}\n`;
-      if (sale.client.code) {
-        text += leftAlign + `Code: ${sale.client.code}\n`;
-      }
-    } else {
-      text += leftAlign + 'Client\n';
-      text += leftAlign + 'Passager\n';
-    }
-    text += '\n';
-
-    // Caissier (Cashier)
-    if (sale.user) {
-      const cashierName = `${sale.user.firstName} ${sale.user.lastName}`;
-      text += leftAlign + 'Caissier\n';
-      text += leftAlign + `${this.sanitizeForThermalPrinter(cashierName)}\n`;
-    }
-
-    // Date and time
-    const shortDate = createdAt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
-    const shortTime = createdAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    text += leftAlign + `${shortDate}, ${shortTime}\n\n`;
-
-    text += '------------------\n';
-
-    // Items header
-    text += leftAlign + boldOn + 'Articles' + boldOff + '\n';
-    text += this.rule('-');
-
-    // Items - sanitized for thermal printer
-    (sale.items || []).forEach(item => {
-      const name = this.sanitizeForThermalPrinter((item.productName || '').toString());
-      const qty = Number(item.quantity || 0);
-      const unit = Number(item.unitPrice || 0);
-      const total = Number(item.total || 0);
-
-      if (item.isWholesale) {
-        const bundleQty = Number(item.bundleQuantity || 0);
-        const bundleSize = Number(item.bundleSize || 1);
-        const totalUnits = bundleQty * bundleSize;
-
-        // Format quantity: show as integer if whole number, otherwise 2 decimals
-        const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
-
-        text += `${name}\n`;
-        text += this.padLine(`  ${qtyFormatted} x ${unit.toFixed(2)} Gros`, `${total.toFixed(2)} dt`) + '\n';
-        if (bundleQty > 0 && bundleSize > 0) {
-          text += `  Lot: ${bundleQty} x ${bundleSize} = ${totalUnits} u.\n`;
-        }
-      } else {
-        // Regular item format (shouldn't happen in wholesale sale, but just in case)
-        const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
-        text += `${name}\n`;
-        text += this.padLine(`  ${qtyFormatted} x ${unit.toFixed(2)}`, `${total.toFixed(2)} dt`) + '\n';
-      }
-      text += '\n';
+  private async receiptLogo(settings: AppSettings): Promise<string | null> {
+    if (settings.printSettings?.showLogo === false || !settings.logoUrl) return null;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Chargement du logo impossible')), 10000);
+      img.onload = () => { clearTimeout(timeout); resolve(); };
+      img.onerror = () => { clearTimeout(timeout); reject(new Error('Chargement du logo impossible')); };
+      img.src = this.settingsService.getAbsoluteLogoUrl(settings.logoUrl);
     });
-
-    text += this.rule('-') + '\n';
-
-    // Payment section
-    const showPay = settings?.printSettings?.showPaymentMethod !== false;
-    if (showPay) text += leftAlign + boldOn + 'Paiement' + boldOff + '\n';
-
-    // Payment type
-    const paymentTypeText = this.getPaymentTypeTextForPrint(sale.paymentType || 'COMPTANT', sale.status);
-    text += leftAlign + `Type de paiement: ${paymentTypeText}\n`;
-
-    // Payment method
-    if (sale.paymentMethod) {
-      text += leftAlign + `Méthode: ${this.sanitizeForThermalPrinter(sale.paymentMethod.name)}\n`;
-    }
-
-    // Advance payment (acompte)
-    const advancePayment = sale.advancePayment !== undefined && sale.advancePayment !== null ? Number(sale.advancePayment) : 0;
-    if (advancePayment > 0) {
-      text += leftAlign + `Acompte: ${advancePayment.toFixed(2)} dt\n`;
-      if (sale.advancePaymentMethod) {
-        text += leftAlign + `Méthode acompte: ${this.sanitizeForThermalPrinter(sale.advancePaymentMethod.name)}\n`;
-      }
-    }
-
-    text += '\n';
-
-    // Totals
-    const discount = Number(sale.discount || 0);
-    const subtotal = Number((sale.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0));
-    // Use finalTotal from database as TOTAL
-    const total = Number(sale.finalTotal || subtotal - discount);
-
-    text += leftAlign + this.padLine('Sous-total', `${subtotal.toFixed(2)} dt`) + '\n';
-    if (discount > 0) {
-      if (settings?.printSettings?.showDiscountDetails !== false) {
-      text += leftAlign + this.padLine('Remise', `-${discount.toFixed(2)} dt`) + '\n';
-    }
-    }
-    text += leftAlign + boldOn + `Total: ${total.toFixed(2)} dt` + boldOff + '\n';
-
-    text += this.rule('=');
-
-    // Custom thank you message from settings - sanitized for thermal printer
-    const thankYouMessage = this.sanitizeForThermalPrinter(settings?.printSettings?.customTexts?.thankYouMessage || 'Merci de votre visite!');
-    text += centerAlign + thankYouMessage + '\n\n\n\n\n\n';
-
-    // La coupe et l'avance papier sont ajoutees cote Rust (build_receipt),
-    // sinon le ticket etait coupe deux fois.
-
-    // Open cash drawer for cash payments (espèces) - same logic for web and desktop
-    const isCashPayment = sale.paymentType === 'COMPTANT' ||
-      (sale.paymentMethod && (
-        sale.paymentMethod.id === 1 ||
-        sale.paymentMethod.name?.toLowerCase().includes('espèces') ||
-        sale.paymentMethod.name?.toLowerCase().includes('especes') ||
-        sale.paymentMethod.name?.toLowerCase().includes('cash')
-      ));
-
-    if (isCashPayment) {
-      // ESC/POS command to open cash drawer: ESC p 0 25 250
-      text += ESC + '\x70\x00\x19\xFA';
-    }
-
-    return text;
+    const size = receiptLogoPixels[settings.printSettings?.logoSize || 'medium'];
+    const ratio = size / Math.max(img.naturalWidth, img.naturalHeight);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * ratio));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * ratio));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Conversion du logo indisponible');
+    context.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return this.toBase64(encodeReceiptLogo(context.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height));
   }
 
   // Utility methods
