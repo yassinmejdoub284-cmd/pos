@@ -34,7 +34,7 @@ const configB = structuredClone(configA);
 Object.assign(configB.printSettings,{showLogo:false,showCompanyDetails:false,showClientInfo:false,showPaymentMethod:false,showDiscountDetails:false,doubleImpression:false,dateFormat:'mm/dd/yyyy',timeFormat:'12h',currencySymbol:'EUR',currencyPosition:'before',receiptCompanyName:'Comptoir B',receiptDepotName:''});
 Object.assign(configB.printSettings.customTexts,{receiptTitle:'TICKET EXPRESS',companySlogan:'',thankYouMessage:'',footerMessage:''});
 const configC = structuredClone(configA);
-Object.assign(configC.printSettings,{logoSize:'large',dateFormat:'yyyy-mm-dd',timeFormat:'12h',currencySymbol:'TND',currencyPosition:'before',receiptCompanyName:'Atelier Pâtisserie',receiptDepotName:'Comptoir Tunis'});
+Object.assign(configC.printSettings,{logoSize:'large',dateFormat:'yyyy-mm-dd',timeFormat:'12h',currencySymbol:'TND',currencyPosition:'before',receiptCompanyName:'Comptoir Samurai',receiptDepotName:'Comptoir Tunis'});
 Object.assign(configC.printSettings.customTexts,{receiptTitle:'REÇU PERSONNALISÉ',companySlogan:'Créations du jour',thankYouMessage:'Bonne dégustation !',footerMessage:'À très bientôt'});
 async function test(name,fn) {await fn();report.push({test:name,status:'PASS'});console.log('PASS '+name);}
 async function main() {

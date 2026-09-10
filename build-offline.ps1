@@ -24,7 +24,7 @@ $env:CARGO_INCREMENTAL = "1"
 # folder OneDrive takes locks mid-sync and build scripts fail with
 # "output path is not a writable directory". Build outside the synced tree.
 if (-not $env:CARGO_TARGET_DIR -and $Root -like "*OneDrive*") {
-    $env:CARGO_TARGET_DIR = Join-Path $env:LOCALAPPDATA "pos-patisserie-cargo-target"
+    $env:CARGO_TARGET_DIR = Join-Path $env:LOCALAPPDATA "samurai-food-cargo-target"
     Write-Host "OneDrive path detected - building Rust into $env:CARGO_TARGET_DIR" -ForegroundColor Yellow
 }
 if ($env:CARGO_TARGET_DIR) {
@@ -79,7 +79,7 @@ if ($missing) {
     throw "Build inputs missing. If these exist locally they are untracked - CI builds from HEAD."
 }
 $ngJson = Get-Content (Join-Path $Client "angular.json") -Raw | ConvertFrom-Json
-$buildCfgs = $ngJson.projects.'pos-patisserie'.architect.build.configurations
+$buildCfgs = $ngJson.projects.'samurai-food'.architect.build.configurations
 if (-not ($buildCfgs.PSObject.Properties.Name -contains "offline")) {
     throw "angular.json has no 'offline' build configuration - it is probably uncommitted."
 }

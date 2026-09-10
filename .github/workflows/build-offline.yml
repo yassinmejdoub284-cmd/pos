@@ -64,7 +64,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: pos-patisserie-installer
+          name: samurai-food-installer
           path: desktop/src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: warn
           retention-days: 1

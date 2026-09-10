@@ -1,7 +1,7 @@
 {
-    "name": "SoluMove Tech. - Logiciel de Patisserie",
+    "name": "Samurai Food",
     "short_name": "SoluMove",
-    "description": "Système de gestion pour votre pâtisserie",
+    "description": "Système de point de vente Samurai Food",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",

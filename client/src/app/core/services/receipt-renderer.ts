@@ -1,7 +1,7 @@
 import type { Sale } from '../models/sale.model';
 import type { AppSettings } from './settings.service';
 
-type Row = { label: string; value?: string; bold?: boolean; center?: boolean };
+type Row = { label: string; value?: string; bold?: boolean; center?: boolean; big?: boolean };
 export const receiptLogoPixels = { small: 128, medium: 192, large: 256 };
 const escape = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 const plain = (value: unknown) => String(value ?? '').replace(/[\x00-\x1f\x7f]/g, ' ');
@@ -27,13 +27,15 @@ function receiptRows(sale: Sale, settings?: AppSettings | null, kitchen = false)
     return (p?.currencyPosition === 'before' ? `${symbol} ${amount}` : `${amount} ${symbol}`).trim();
   };
   const rows: Row[] = [];
-  const add = (label: unknown, value?: string, bold = false, center = false) => {
-    if (String(label ?? '').trim()) rows.push({ label: String(label), value, bold, center });
+  const add = (label: unknown, value?: string, bold = false, center = false, big = false) => {
+    if (String(label ?? '').trim()) rows.push({ label: String(label), value, bold, center, big });
   };
   const center = (label: unknown, bold = false) => add(label, undefined, bold, true);
+  /** Nom de l'entreprise : centre, gras et en gros caracteres. */
+  const title = (label: unknown) => add(label, undefined, true, true, true);
   const { date, time } = receiptDateTime(sale.createdAt, settings);
-  center(p?.receiptCompanyName?.trim() || settings?.companyName || 'Samurai Food', true);
-  center(p?.receiptDepotName);
+  title(p?.receiptCompanyName?.trim() || settings?.companyName || 'Samurai Food');
+  center(p?.receiptDepotName, true);
   if (!kitchen) {
     if (p?.showCompanyDetails !== false) {
       [settings?.companyAddress, settings?.companyPhone, settings?.companyEmail,
@@ -102,11 +104,11 @@ export function renderReceiptHtml(sale: Sale, settings: AppSettings | null | und
     .row { display:flex; justify-content:space-between; gap:8px; margin:3px 0; }
     .label { overflow-wrap:anywhere; min-width:0; white-space:pre-wrap; } .value { flex-shrink:0; white-space:nowrap; }
     .center { display:block; text-align:center; white-space:pre-wrap; overflow-wrap:anywhere; }
-    .bold { font-weight:bold; } .logo { display:block; object-fit:contain; margin:0 auto 10px; }
+    .bold { font-weight:bold; } .big { font-size:24px; line-height:1.2; letter-spacing:1px; } .logo { display:block; object-fit:contain; margin:0 auto 10px; }
     hr { border:0; border-top:1px dashed black; margin:10px 0; }
     .kitchen { font-size:16px; } .ticket + .ticket { break-before:page; border-top:2px dashed #888; margin-top:24px; }
     @media print { .ticket + .ticket { border:0; margin-top:0; } .no-print { display:none; } }
-    </style></head><body><article class="ticket${kitchen ? ' kitchen' : ''}">${logo}${receiptRows(sale, settings, kitchen).map(r => r.label === '─' ? '<hr>' : `<div class="row${r.center ? ' center' : ''}${r.bold ? ' bold' : ''}"><span class="label">${escape(r.label)}</span>${r.value !== undefined ? `<span class="value">${escape(r.value)}</span>` : ''}</div>`).join('')}</article></body></html>`;
+    </style></head><body><article class="ticket${kitchen ? ' kitchen' : ''}">${logo}${receiptRows(sale, settings, kitchen).map(r => r.label === '─' ? '<hr>' : `<div class="row${r.center ? ' center' : ''}${r.bold ? ' bold' : ''}${r.big ? ' big' : ''}"><span class="label">${escape(r.label)}</span>${r.value !== undefined ? `<span class="value">${escape(r.value)}</span>` : ''}</div>`).join('')}</article></body></html>`;
 }
 
 export function renderReceiptText(sale: Sale, settings?: AppSettings | null, kitchen = false): string {
@@ -115,7 +117,12 @@ export function renderReceiptText(sale: Sale, settings?: AppSettings | null, kit
     if (row.label === '─') return '-'.repeat(width) + '\n';
     const label = plain(row.label), value = row.value === undefined ? '' : plain(row.value);
     const line = value ? (label.length + value.length + 1 <= width ? label + ' '.repeat(width - label.length - value.length) + value : label + '\n' + value.padStart(width)) : label;
-    return `\x1ba${row.center ? '\x01' : '\x00'}\x1bE${row.bold ? '\x01' : '\x00'}${line}\x1bE\x00\n`;
+    // ESC ! 0x38 = double largeur + double hauteur + gras. Au-dela de 24
+    // caracteres la double largeur ne tient pas sur 48 colonnes : on garde
+    // alors la double hauteur seule (0x18) pour eviter la troncature.
+    const size = row.big ? (label.length <= width / 2 ? '\x1b!\x38' : '\x1b!\x18') : '';
+    const sizeOff = row.big ? '\x1b!\x00' : '';
+    return `\x1ba${row.center ? '\x01' : '\x00'}\x1bE${row.bold ? '\x01' : '\x00'}${size}${line}${sizeOff}\x1bE\x00\n`;
   }).join('') + '\x1ba\x00\n';
 }
 

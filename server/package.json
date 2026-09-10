@@ -1,7 +1,7 @@
 {
-  "name": "pos-patisserie-server",
+  "name": "samurai-food-server",
   "version": "1.0.0",
-  "description": "Tunisian Pâtisserie POS System Backend",
+  "description": "Samurai Food POS System Backend",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -20,7 +20,7 @@
   },
   "keywords": [
     "pos",
-    "patisserie",
+    "pos",
     "tunisia",
     "inventory",
     "sales"

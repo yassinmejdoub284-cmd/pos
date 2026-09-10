@@ -29,7 +29,7 @@ if (fs.existsSync(envPath)) {
 } else {
   // Fallback: inline defaults so the server still starts
   process.env.DATABASE_URL = `file:${path.join(exeDir, 'pos_patisserie.db')}`;
-  process.env.JWT_SECRET    = process.env.JWT_SECRET || 'pos-patisserie-offline-secret';
+  process.env.JWT_SECRET    = process.env.JWT_SECRET || 'samurai-food-offline-secret';
   process.env.PORT          = process.env.PORT        || '3255';
   process.env.NODE_ENV      = 'production';
 }

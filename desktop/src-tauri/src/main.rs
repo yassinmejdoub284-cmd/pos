@@ -80,7 +80,7 @@ fn start_backend_server(app_handle: &tauri::AppHandle) -> Option<Child> {
 
     let mut cmd = Command::new(&server_exe);
     cmd.env("DATABASE_URL", &db_url)
-        .env("JWT_SECRET",   "pos-patisserie-offline-secret-key-2024")
+        .env("JWT_SECRET",   "samurai-food-offline-secret-key-2024")
         .env("PORT",         "3255")
         .env("NODE_ENV",     "production")
         .env("LOG_LEVEL",    "warn")
