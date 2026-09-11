@@ -44,6 +44,10 @@ export interface SaleItem {
   saleId: number;
   productId: number;
   productName: string;
+  /** Description du produit : imprimee uniquement sur le ticket cuisine. */
+  description?: string;
+  /** Presente quand la vente est rechargee depuis le serveur (GET /sales/:id). */
+  product?: { description?: string | null };
   quantity: number;
   unitPrice: number;
   total: number;

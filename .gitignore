@@ -86,6 +86,8 @@ server/test.db
 # local logo backups
 _logo_backup/
 
+server/samurai_food.db
+server/samurai_food.template.db
 server/pos_patisserie.db
 server/pos_patisserie.template.db
 

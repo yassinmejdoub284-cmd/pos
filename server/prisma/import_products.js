@@ -10,7 +10,7 @@ async function main() {
     try {
         // 1. Lire le fichier JSON source
         // Note: Chemin en dur basé sur la demande utilisateur
-        const jsonPath = path.resolve('C:/Users/USER/Downloads/PoS_Patisserie-1/products_202601251718.json');
+        const jsonPath = path.resolve(process.env.PRODUCTS_JSON || './products.json');
         if (!fs.existsSync(jsonPath)) {
             throw new Error(`Fichier introuvable : ${jsonPath}`);
         }

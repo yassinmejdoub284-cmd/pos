@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
  * Seed "vierge" — Samurai Food.
  *
  * Ne cree QUE le strict minimum pour que le logiciel demarre :
- *   - 2 depots : Depot Principal Sfax et Boutique Sfax
+ *   - 1 depot : Samurai (type SHOP)
  *   - 1 compte administrateur, PIN 1100
  *   - 1 famille de produits generique (le champ familleId est obligatoire)
  *   - les moyens de paiement et les categories de depenses
@@ -17,35 +17,24 @@ const prisma = new PrismaClient();
  */
 async function main() {
 
-  // ---------------------------------------------------------------- depots
-  const depots = await Promise.all([
-    prisma.depot.upsert({
-      where: { code: 'SFX-MAIN' },
-      update: { name: 'Depot Principal Sfax', isActive: true },
-      create: {
-        name: 'Depot Principal Sfax',
-        code: 'SFX-MAIN',
-        type: 'MAIN',
-        address: '',
-        city: 'Sfax',
-        phone: null,
-        email: null
-      }
-    }),
-    prisma.depot.upsert({
-      where: { code: 'SHOP-SFX' },
-      update: { name: 'Boutique Sfax', isActive: true },
-      create: {
-        name: 'Boutique Sfax',
-        code: 'SHOP-SFX',
-        type: 'SHOP',
-        address: '',
-        city: 'Sfax',
-        phone: null,
-        email: null
-      }
-    })
-  ]);
+  // ----------------------------------------------------------------- depot
+  // Un seul depot : l'application est livree pour un point de vente unique.
+  // Type SHOP : c'est le type qui fait passer la caisse et la creation de
+  // produits par la table products (chemin simple), et non par les
+  // regroupements produits_de_caisse reserves aux depots MAIN/BRANCH.
+  const depot = await prisma.depot.upsert({
+    where: { code: 'SAMURAI' },
+    update: { name: 'Samurai', type: 'SHOP', isActive: true },
+    create: {
+      name: 'Samurai',
+      code: 'SAMURAI',
+      type: 'SHOP',
+      address: '',
+      city: 'Sfax',
+      phone: null,
+      email: null
+    }
+  });
 
   // ------------------------------------------------------- famille par defaut
   // familleId est obligatoire cote schema : sans au moins une famille, il est
@@ -105,7 +94,7 @@ async function main() {
       firstName: 'Admin',
       lastName: 'Samurai Food',
       role: 'ADMIN',
-      depotId: depots[0].id
+      depotId: depot.id
     }
   });
 }

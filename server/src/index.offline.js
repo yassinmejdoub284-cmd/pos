@@ -28,7 +28,7 @@ if (fs.existsSync(envPath)) {
   require('dotenv').config({ path: envPath });
 } else {
   // Fallback: inline defaults so the server still starts
-  process.env.DATABASE_URL = `file:${path.join(exeDir, 'pos_patisserie.db')}`;
+  process.env.DATABASE_URL = `file:${path.join(exeDir, 'samurai_food.db')}`;
   process.env.JWT_SECRET    = process.env.JWT_SECRET || 'samurai-food-offline-secret';
   process.env.PORT          = process.env.PORT        || '3255';
   process.env.NODE_ENV      = 'production';
@@ -42,7 +42,7 @@ if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('file:./')) 
 
 const dbTarget = String(process.env.DATABASE_URL || '').replace(/^file:/, '');
 const dataDir  = dbTarget ? path.dirname(dbTarget) : exeDir;
-const template = path.join(exeDir, 'pos_patisserie.template.db');
+const template = path.join(exeDir, 'samurai_food.template.db');
 
 // ── Journal fichier ────────────────────────────────────────────────────────
 // Le serveur est lance sans fenetre par Tauri : sans ce journal, aucune trace
@@ -139,7 +139,7 @@ function createBackup(reason) {
 
     let archived = 0;
     if (fs.existsSync(dbTarget)) {
-      fs.copyFileSync(dbTarget, path.join(dir, 'pos_patisserie.db'));
+      fs.copyFileSync(dbTarget, path.join(dir, path.basename(dbTarget)));
       archived++;
     }
     // Parametres, logos et fichiers televerses.
@@ -150,7 +150,7 @@ function createBackup(reason) {
 
     fs.writeFileSync(path.join(dir, 'INFOS.txt'),
       `Sauvegarde automatique\nDate   : ${now.toISOString()}\nRaison : ${reason}\n\n` +
-      `Contenu :\n  pos_patisserie.db  - base de donnees (ventes, produits, clients...)\n` +
+      `Contenu :\n  ${path.basename(dbTarget)}  - base de donnees (ventes, produits, clients...)\n` +
       `  uploads/           - parametres, logos, images\n\n` +
       `Pour restaurer : arreter l'application, puis recopier ces fichiers\n` +
       `a la place de ceux du dossier d'installation.\n`, 'utf-8');
@@ -161,6 +161,20 @@ function createBackup(reason) {
     console.error('[offline] ECHEC de la sauvegarde :', e.message);
     return null;
   }
+}
+
+// ── Migration du nom de la base ────────────────────────────────────────────
+// La base s'appelait pos_patisserie.db avant le changement de marque. Sans ce
+// renommage, une installation existante repartirait d'une base vide et le
+// client perdrait ses ventes.
+try {
+  const legacyDb = path.join(dataDir, 'pos_patisserie.db');
+  if (dbTarget && !fs.existsSync(dbTarget) && fs.existsSync(legacyDb)) {
+    fs.renameSync(legacyDb, dbTarget);
+    console.log('[offline] Base existante reprise :', legacyDb, '->', dbTarget);
+  }
+} catch (e) {
+  console.error('[offline] Reprise de la base precedente impossible :', e.message);
 }
 
 // ── Remise a zero apres installation d'une nouvelle version ────────────────

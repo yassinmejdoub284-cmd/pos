@@ -5564,6 +5564,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
       saleId: 0,
       productId: it.product?.id ?? it.productId ?? 0,
       productName: it.product?.name ?? it.productName ?? '',
+      // Reprise pour le ticket cuisine uniquement (voir receipt-renderer).
+      description: it.product?.description ?? it.description ?? '',
       quantity: Number(it.quantity || 0),
       unitPrice: Number(it.unitPrice || 0),
       total: Number(it.total || (Number(it.quantity || 0) * Number(it.unitPrice || 0))),

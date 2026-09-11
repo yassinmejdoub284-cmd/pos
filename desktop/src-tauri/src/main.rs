@@ -72,7 +72,7 @@ fn start_backend_server(app_handle: &tauri::AppHandle) -> Option<Child> {
     let server_dir = server_exe.parent().unwrap_or(&exe_dir).to_path_buf();
 
     // DB lives next to the exe (user-writable, persists across upgrades)
-    let db_path = exe_dir.join("pos_patisserie.db");
+    let db_path = exe_dir.join("samurai_food.db");
     let db_url  = format!("file:{}", db_path.to_string_lossy().replace('\\', "/"));
 
     println!("[Tauri] Starting backend: {:?}", server_exe);

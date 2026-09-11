@@ -59,7 +59,14 @@ function receiptRows(sale: Sale, settings?: AppSettings | null, kitchen = false)
   add('─');
   for (const item of sale.items || []) {
     const qty = Number(item.quantity || 0);
-    if (kitchen) { add(`${qty} × ${item.productName}`, undefined, true); continue; }
+    if (kitchen) {
+      add(`${qty} × ${item.productName}`, undefined, true);
+      // Description du produit : utile en cuisine (composition, cuisson,
+      // sans oignon...). Volontairement absente du ticket client.
+      const note = (item.description || item.product?.description || '').toString().trim();
+      if (note) for (const l of note.split(/\r?\n/)) { if (l.trim()) add(`   ${l.trim()}`); }
+      continue;
+    }
     add(item.productName, undefined, true);
     if (item.isWholesale && item.bundlePrice != null) {
       add(`  ${Number(item.bundleQuantity || 0)} lots × ${money(Number(item.bundlePrice))}`, money(Number(item.total || 0)));
