@@ -177,21 +177,31 @@ try {
   console.error('[offline] Reprise de la base precedente impossible :', e.message);
 }
 
-// ── Remise a zero apres installation d'une nouvelle version ────────────────
+// ── Mise a jour de version : les donnees sont CONSERVEES ───────────────────
 // build-id.txt est genere a chaque build et livre dans resources/.
-// installed-build.txt est ecrit a cote de la base apres chaque remise a zero.
-// Quand les deux different, c'est qu'une nouvelle version vient d'etre
-// installee : on archive tout, puis on repart d'une base vierge.
+// installed-build.txt est ecrit a cote de la base.
+//
+// Regle : installer une nouvelle version NE SUPPRIME RIEN. Un poste en
+// service garde ses ventes, ses produits, ses clients, son logo et ses
+// reglages. Une sauvegarde est tout de meme creee avant, par securite.
+//
+// Pour repartir d'une base vierge (preparer un poste destine a un nouveau
+// client), deposer un fichier nomme RESET.txt a cote de pos-server.exe.
+// Il est consomme au demarrage suivant : la remise a zero n'a lieu qu'une
+// fois, puis le fichier est efface.
 try {
   const shippedFile   = path.join(exeDir, 'build-id.txt');
   const installedFile = path.join(dataDir, 'installed-build.txt');
+  const resetMarker   = path.join(exeDir, 'RESET.txt');
   const shipped   = fs.existsSync(shippedFile)   ? fs.readFileSync(shippedFile, 'utf-8').trim()   : '';
   const installed = fs.existsSync(installedFile) ? fs.readFileSync(installedFile, 'utf-8').trim() : '';
   const dbExists  = dbTarget && fs.existsSync(dbTarget);
+  const resetDemande = fs.existsSync(resetMarker);
 
-  if (shipped && shipped !== installed && dbExists) {
-    console.log('[offline] Nouvelle version detectee :', installed || '(aucune)', '->', shipped);
-    const backup = createBackup(`Installation de la version ${shipped}`);
+  if (resetDemande && dbExists) {
+    // Remise a zero explicite, demandee par le fichier RESET.txt.
+    console.log('[offline] RESET.txt detecte : remise a zero demandee.');
+    const backup = createBackup('Remise a zero demandee (RESET.txt)');
 
     if (!backup) {
       // Regle de securite : sans sauvegarde, on ne supprime RIEN.
@@ -204,16 +214,21 @@ try {
       } else {
         console.error('[offline] Modele de base introuvable : la base actuelle est conservee.');
       }
-
-      // Les parametres ne vivent pas dans la base mais dans uploads/app-settings.json.
-      // Sans cette remise a zero, le nom de societe, le logo et les reglages
-      // d'impression du client precedent survivaient a l'installation : la base
-      // repartait vierge mais l'entete affichait toujours l'ancienne enseigne.
-      // La sauvegarde ci-dessus contient deja une copie de tout le dossier uploads.
+      // Les parametres vivent dans uploads/app-settings.json, pas dans la base :
+      // sans cette ligne l'ancienne enseigne et l'ancien logo survivraient.
       resetSettingsFile();
-
-      fs.writeFileSync(installedFile, shipped, 'utf-8');
+      try { fs.rmSync(resetMarker, { force: true }); } catch (e) { /* marqueur laisse en place */ }
+      console.log('[offline] Remise a zero terminee. Sauvegarde :', backup);
     }
+    if (shipped) fs.writeFileSync(installedFile, shipped, 'utf-8');
+
+  } else if (shipped && shipped !== installed && dbExists) {
+    // Mise a jour ordinaire : sauvegarde, puis on garde tout.
+    console.log('[offline] Mise a jour :', installed || '(aucune)', '->', shipped);
+    const backup = createBackup(`Mise a jour vers la version ${shipped}`);
+    console.log('[offline] Donnees conservees.', backup ? `Sauvegarde : ${backup}` : 'Sauvegarde impossible.');
+    fs.writeFileSync(installedFile, shipped, 'utf-8');
+
   } else if (shipped && !installed) {
     // Premiere installation : rien a archiver, on note simplement la version.
     fs.writeFileSync(installedFile, shipped, 'utf-8');
