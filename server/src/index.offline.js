@@ -263,4 +263,97 @@ if (dbTarget && fs.existsSync(dbTarget)) {
   }
 }
 
+// ── Mise a niveau du schema de la base ─────────────────────────────────────
+// Depuis que la mise a jour conserve les donnees, la base du client garde le
+// schema de la version qu'il avait installee. Toute nouvelle fonctionnalite
+// touchant au schema (une table, une colonne) echouerait alors chez lui :
+// c'est ce qui donnait "erreur de chargement des commentaires" sur un poste
+// mis a jour, dont la base n'avait pas la table product_comments.
+//
+// Le modele livre (samurai_food.template.db) porte toujours le schema a jour.
+// On l'attache, on compare, et on cree ce qui manque. Aucune donnee n'est
+// touchee : uniquement des CREATE TABLE, CREATE INDEX et ADD COLUMN.
+function migrerSchema() {
+  if (!dbTarget || !fs.existsSync(dbTarget) || !fs.existsSync(template)) return;
+
+  let DatabaseSync;
+  try {
+    ({ DatabaseSync } = require('node:sqlite'));
+  } catch (e) {
+    console.error('[offline] Mise a niveau du schema indisponible :', e.message);
+    return;
+  }
+
+  let db;
+  try {
+    db = new DatabaseSync(dbTarget);
+    db.exec(`ATTACH DATABASE '${template.replace(/'/g, "''")}' AS modele`);
+
+    const objets = (source, type) => db
+      .prepare(`SELECT name, sql, tbl_name FROM ${source}.sqlite_master WHERE type = ? AND name NOT LIKE 'sqlite_%'`)
+      .all(type);
+
+    const tablesLocales  = new Set(objets('main', 'table').map(o => o.name));
+    const tablesModele   = objets('modele', 'table');
+    const indexLocaux    = new Set(objets('main', 'index').map(o => o.name));
+    const indexModele    = objets('modele', 'index');
+
+    let ajouts = 0;
+
+    // 1. Tables absentes
+    for (const table of tablesModele) {
+      if (tablesLocales.has(table.name) || !table.sql) continue;
+      db.exec(table.sql);
+      console.log('[offline] Schema : table creee ->', table.name);
+      tablesLocales.add(table.name);
+      ajouts++;
+    }
+
+    // 2. Colonnes absentes dans les tables existantes
+    // Attention : pragma_table_info ignore le prefixe de schema. Seule la
+    // forme a deux arguments cible reellement la base attachee.
+    for (const table of tablesModele) {
+      const colonnesLocales = new Set(
+        db.prepare(`SELECT name FROM pragma_table_info('${table.name}')`).all().map(c => c.name)
+      );
+      if (colonnesLocales.size === 0) continue;
+      const colonnesRef = db
+        .prepare(`SELECT name, type, [notnull], dflt_value FROM pragma_table_info('${table.name}', 'modele')`)
+        .all();
+      for (const col of colonnesRef) {
+        if (colonnesLocales.has(col.name)) continue;
+        // Une colonne NOT NULL sans valeur par defaut ne peut pas etre ajoutee
+        // a une table qui contient deja des lignes : on la signale sans casser.
+        if (col.notnull && (col.dflt_value === null || col.dflt_value === undefined)) {
+          console.error(`[offline] Schema : colonne ${table.name}.${col.name} NOT NULL sans defaut, ajout impossible`);
+          continue;
+        }
+        const defaut = (col.dflt_value === null || col.dflt_value === undefined) ? '' : ` DEFAULT ${col.dflt_value}`;
+        db.exec(`ALTER TABLE "${table.name}" ADD COLUMN "${col.name}" ${col.type || 'TEXT'}${defaut}`);
+        console.log(`[offline] Schema : colonne ajoutee -> ${table.name}.${col.name}`);
+        ajouts++;
+      }
+    }
+
+    // 3. Index absents
+    for (const idx of indexModele) {
+      if (indexLocaux.has(idx.name) || !idx.sql) continue;
+      if (!tablesLocales.has(idx.tbl_name)) continue;
+      try { db.exec(idx.sql); ajouts++; } catch (e) { /* index deja couvert */ }
+    }
+
+    db.exec('DETACH DATABASE modele');
+    console.log(ajouts > 0
+      ? `[offline] Schema mis a niveau (${ajouts} modification(s)).`
+      : '[offline] Schema deja a jour.');
+  } catch (e) {
+    console.error('[offline] Mise a niveau du schema echouee :', e.message);
+    console.error('[offline] La base reste utilisable, mais une fonctionnalite recente peut manquer.');
+  } finally {
+    try { if (db) db.close(); } catch (e) { /* deja fermee */ }
+  }
+}
+
+migrerSchema();
+
 require('./index');
