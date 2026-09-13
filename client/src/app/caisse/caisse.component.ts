@@ -2,6 +2,8 @@ import { Component, OnInit, OnDestroy, HostListener, ViewChild, ElementRef, Chan
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { ProductsService } from '../core/services/products.service';
+import { ProductCommentsService } from '../core/services/product-comments.service';
+import { ProductComment } from '../core/models/product-comment.model';
 import { SalesService, CreateSaleRequest } from '../core/services/sales.service';
 import { ClientsService } from '../core/services/clients.service';
 import { StockDocumentsService } from '../core/services/stock-documents.service';
@@ -43,6 +45,8 @@ interface ReceiptItem {
   bundlePrice?: number;
   marginPercent?: number;
   isApproved?: boolean;
+  /** Commentaires de preparation choisis en caisse, separes par ' | '. */
+  comment?: string;
 }
 
 interface ClientCart {
@@ -470,6 +474,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     private router: Router,
     private http: HttpClient,
     private productsService: ProductsService,
+    private productCommentsService: ProductCommentsService,
     private salesService: SalesService,
     private clientsService: ClientsService,
     private stockDocumentsService: StockDocumentsService,
@@ -1496,6 +1501,76 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
 
 
+  // ===================== Commentaires de preparation =====================
+  // Grille ouverte automatiquement quand un produit ayant des commentaires
+  // est ajoute au ticket. Le resultat est stocke sur la ligne de panier et
+  // n'est imprime que sur le ticket cuisine (voir receipt-renderer).
+  showCommentModal = false;
+  commentOptions: ProductComment[] = [];
+  commentSelected: string[] = [];
+  commentFreeText = '';
+  commentModalProductName = '';
+  private commentTargetItem: any = null;
+
+  /** Charge les commentaires du produit et ouvre la grille s'il y en a. */
+  private openCommentsForItem(item: any): void {
+    const productId = item?.product?.id;
+    if (!productId) return;
+    this.productCommentsService.forProduct(productId).subscribe({
+      next: (options) => {
+        const active = (options || []).filter(o => o.isActive !== false);
+        if (active.length === 0) return;
+        this.commentOptions = active;
+        this.commentTargetItem = item;
+        this.commentModalProductName = item?.product?.name || '';
+        this.commentSelected = this.splitComment(item.comment);
+        this.commentFreeText = '';
+        this.showCommentModal = true;
+      },
+      // Indisponible : on n'interrompt pas la vente.
+      error: () => { }
+    });
+  }
+
+  private splitComment(value: any): string[] {
+    return String(value || '').split('|').map(x => x.trim()).filter(x => !!x);
+  }
+
+  isCommentSelected(label: string): boolean {
+    return this.commentSelected.includes(label);
+  }
+
+  toggleComment(label: string): void {
+    this.commentSelected = this.isCommentSelected(label)
+      ? this.commentSelected.filter(l => l !== label)
+      : [...this.commentSelected, label];
+  }
+
+  clearComments(): void {
+    this.commentSelected = [];
+    this.commentFreeText = '';
+  }
+
+  closeCommentModal(): void {
+    this.showCommentModal = false;
+    this.commentTargetItem = null;
+    this.commentOptions = [];
+  }
+
+  confirmComments(): void {
+    const extra = this.commentFreeText.trim();
+    const all = extra ? [...this.commentSelected, extra] : [...this.commentSelected];
+    if (this.commentTargetItem) {
+      this.commentTargetItem.comment = all.join(' | ');
+    }
+    this.closeCommentModal();
+  }
+
+  /** Rouvrir la grille pour une ligne deja presente au ticket. */
+  editItemComments(item: any): void {
+    this.openCommentsForItem(item);
+  }
+
   addProductToReceipt(product: any): void {
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
@@ -1554,6 +1629,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       activeCart.items.unshift(newItem as any);
       this.selectedReceiptItem = newItem as any;
       this.selectedReceiptItemIndex = 0;
+      this.openCommentsForItem(newItem);
     }
     this.calculateTotals();
   }
@@ -1641,6 +1717,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       activeCart.items.unshift(newItem as any);
       this.selectedReceiptItem = newItem as any;
       this.selectedReceiptItemIndex = 0;
+      this.openCommentsForItem(newItem);
     }
     this.calculateTotals();
   }
@@ -2946,6 +3023,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       const items = activeCart.items.map(item => ({
         productId: item.product.id,
         productName: item.product.name,
+        comment: item.comment || undefined,
         quantity: Number(item.quantity),
         unitPrice: Number(item.unitPrice),
         total: Number(item.total)
@@ -3032,6 +3110,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
         return {
           productId: item.product.id,
           productName: item.product.name,
+        comment: item.comment || undefined,
           quantity: effectiveQuantity,
           unitPrice: effectiveUnitPrice,
           total: Number(item.total),
@@ -3413,6 +3492,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       items: activeCart.items.map(item => ({
         productId: item.product.id,
         productName: item.product.name,
+        comment: item.comment || undefined,
         quantity: item.quantity,
         unitPrice: Number(item.unitPrice),
         total: Number(item.total)
@@ -3852,6 +3932,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       items: activeCart.items.map(item => ({
         productId: item.product.id,
         productName: item.product.name,
+        comment: item.comment || undefined,
         quantity: item.quantity,
         unitPrice: Number(item.unitPrice),
         total: Number(item.total)
@@ -4883,6 +4964,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       activeCart.items.unshift(newItem as any);
       this.selectedReceiptItem = newItem as any;
       this.selectedReceiptItemIndex = 0;
+      this.openCommentsForItem(newItem);
     }
     this.calculateTotals();
   }
@@ -5566,6 +5648,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
       productName: it.product?.name ?? it.productName ?? '',
       // Reprise pour le ticket cuisine uniquement (voir receipt-renderer).
       description: it.product?.description ?? it.description ?? '',
+      comment: it.comment ?? '',
+      familyName: it.product?.famille?.name ?? it.familyName ?? '',
       quantity: Number(it.quantity || 0),
       unitPrice: Number(it.unitPrice || 0),
       total: Number(it.total || (Number(it.quantity || 0) * Number(it.unitPrice || 0))),
@@ -6871,6 +6955,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       items: activeCart.items.map(item => ({
         productId: item.product.id,
         productName: item.product.name,
+        comment: item.comment || undefined,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         total: item.total

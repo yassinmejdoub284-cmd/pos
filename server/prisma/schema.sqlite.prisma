@@ -149,6 +149,21 @@ model Company {
   @@map("companies")
 }
 
+model ProductComment {
+  id           Int      @id @default(autoincrement())
+  label        String
+  /// null = commentaire global, propose pour tous les produits
+  productId    Int?     @map("product_id")
+  displayIndex Int?     @map("display_index")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  product      Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_comments")
+}
+
 model ProductFamily {
   id               Int               @id @default(autoincrement())
   name             String            @unique
@@ -190,6 +205,7 @@ model Product {
   isVraguable              Boolean                 @default(false) @map("is_vraguable")
   prix_achat_vrac          Decimal?                @default(0.000) @map("prix_achat_vrac")
   prix_vente_vrac          Decimal?                @default(0.00) @map("prix_vente_vrac")
+  comments                 ProductComment[]
   clientProductPrices      ClientProductPrice[]
   invoiceLines             InvoiceLine[]
   inventory                Inventory[]
@@ -477,6 +493,8 @@ model SaleItem {
   isWholesale      Boolean  @default(false) @map("is_wholesale")
   marginPercent    Decimal? @map("margin_percent")
   requiresApproval Boolean  @default(false) @map("requires_approval")
+  /// Commentaires cuisine ("sans sauce", "bien cuit"...), separes par ' | '
+  comment          String?
   product          Product  @relation("ProductSaleItems", fields: [productId], references: [id])
   sale             Sale     @relation(fields: [saleId], references: [id])
 

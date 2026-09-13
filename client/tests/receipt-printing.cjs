@@ -65,6 +65,18 @@ async function main() {
      for(const text of ['14.500','3.500','9.000','Carte','Remise','TOTAL A PAYER','\x1bp'])assert.ok(!html.includes(text));
    }
  });
+ await test('Commentaires de préparation et préfixe de famille : cuisine seulement, jamais le client',()=>{
+   const saleWithComments={...sale,items:[
+     {productName:'Sandwich Thon',quantity:1,unitPrice:6,total:6,familyName:'Sandwichs',comment:'Sans sauce | Bien cuit'},
+     {productName:'Pizza Reine',quantity:1,unitPrice:8,total:8,product:{famille:{name:'Pizzas'}},comment:'Sans oignon'}
+   ]};
+   for(const html of [renderer.renderReceiptText(saleWithComments,configA,true),renderer.renderReceiptHtml(saleWithComments,configA,'',true)]){
+     for(const text of ['[SAN]','[PIZ]','Sans sauce','Bien cuit','Sans oignon'])assert.ok(html.includes(text),text);
+   }
+   for(const html of [renderer.renderReceiptText(saleWithComments,configA,false),renderer.renderReceiptHtml(saleWithComments,configA,'',false)]){
+     for(const text of ['[SAN]','[PIZ]','Sans sauce','Bien cuit','Sans oignon'])assert.ok(!html.includes(text),text);
+   }
+ });
  await test('Logo petit, moyen, grand, masqué et conversion thermique',()=>{
    for(const [size,width] of [['small',64],['medium',96],['large',128]]) {
      const config=structuredClone(configA);config.printSettings.logoSize=size;

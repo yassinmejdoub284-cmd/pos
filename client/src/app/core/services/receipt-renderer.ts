@@ -60,11 +60,18 @@ function receiptRows(sale: Sale, settings?: AppSettings | null, kitchen = false)
   for (const item of sale.items || []) {
     const qty = Number(item.quantity || 0);
     if (kitchen) {
-      add(`${qty} × ${item.productName}`, undefined, true);
+      // Repere de famille : 3 premieres lettres, pour trier les tickets en
+      // cuisine d'un coup d'oeil (SAN pour Sandwichs, PIZ pour Pizzas...).
+      const family = (item.familyName || item.product?.famille?.name || '').toString().trim();
+      const tag = family ? `[${family.slice(0, 3).toUpperCase()}] ` : '';
+      add(`${qty} × ${tag}${item.productName}`, undefined, true);
       // Description du produit : utile en cuisine (composition, cuisson,
       // sans oignon...). Volontairement absente du ticket client.
       const note = (item.description || item.product?.description || '').toString().trim();
       if (note) for (const l of note.split(/\r?\n/)) { if (l.trim()) add(`   ${l.trim()}`); }
+      // Commentaires choisis en caisse ("sans sauce", "bien cuit"...).
+      const remarks = (item.comment || '').toString().split('|').map(r => r.trim()).filter(r => !!r);
+      for (const r of remarks) add(`   >> ${r}`, undefined, true);
       continue;
     }
     add(item.productName, undefined, true);

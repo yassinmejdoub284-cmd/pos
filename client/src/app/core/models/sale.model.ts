@@ -46,8 +46,13 @@ export interface SaleItem {
   productName: string;
   /** Description du produit : imprimee uniquement sur le ticket cuisine. */
   description?: string;
+  /** Commentaires de preparation choisis en caisse, separes par ' | '.
+   *  Imprimes uniquement sur le ticket cuisine. */
+  comment?: string;
+  /** Famille du produit : ses 3 premieres lettres sont imprimees en cuisine. */
+  familyName?: string;
   /** Presente quand la vente est rechargee depuis le serveur (GET /sales/:id). */
-  product?: { description?: string | null };
+  product?: { description?: string | null; famille?: { name?: string | null } | null };
   quantity: number;
   unitPrice: number;
   total: number;

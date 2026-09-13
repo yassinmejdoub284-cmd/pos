@@ -46,6 +46,7 @@ const vehiclesRoutes = require('./routes/vehicles');
 const adminDashboardRoutes = require('./routes/admin-dashboard');
 const invoicesRoutes = require('./routes/invoices');
 const auditLogsRoutes = require('./routes/audit-logs');
+const productCommentsRoutes = require('./routes/product-comments');
 
 const { authenticateToken } = require('./middleware/auth');
 
@@ -77,6 +78,7 @@ app.use('/api/sales', authenticateToken, salesRoutes);
 // Allow unauthenticated access to wholesale sales
 app.use('/api/sales/public', salesRoutes);
 app.use('/api/products', authenticateToken, productsRoutes);
+app.use('/api/product-comments', authenticateToken, productCommentsRoutes);
 app.use('/api/users', authenticateToken, usersRoutes);
 app.use('/api/depots', authenticateToken, depotsRoutes);
 app.use('/api/stock', authenticateToken, stockRoutes);
