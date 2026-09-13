@@ -27,7 +27,7 @@ import { ProductComment } from '../../../core/models/product-comment.model';
           Consignes de preparation proposees en caisse et imprimees uniquement sur le ticket cuisine.
         </p>
       </div>
-      <a routerLink="/stock/products"
+      <a routerLink="/stock/produits"
          class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
         Retour
       </a>
