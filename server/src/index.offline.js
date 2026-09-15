@@ -667,4 +667,123 @@ function seedVariantesViande() {
 
 seedVariantesViande();
 
+// Range chaque article du menu dans sa famille (Chapati Classic / Chapati
+// Samurai / Mlewi Classic / Mlewi Samurai), d'apres le prefixe de son nom.
+// Cree aussi deux familles vides "Supplement" et "Boisson", pretes a
+// recevoir de futurs articles. Idempotent : ne fait rien si deja fait,
+// ne touche jamais aux articles hors menu (ex: articles de test).
+function organiserFamillesMenu() {
+  if (!dbTarget || !fs.existsSync(dbTarget)) return;
+  let DatabaseSync;
+  try { ({ DatabaseSync } = require('node:sqlite')); } catch (e) { return; }
+
+  const FAMILLES = ['Chapati Classic', 'Chapati Samurai', 'Mlewi Classic', 'Mlewi Samurai', 'Supplement', 'Boisson'];
+
+  let db;
+  try {
+    db = new DatabaseSync(dbTarget);
+
+    const colonnesProducts = db.prepare(`SELECT name FROM pragma_table_info('products')`).all().map(c => c.name);
+    const colonnesFamilles = db.prepare(`SELECT name FROM pragma_table_info('product_families')`).all().map(c => c.name);
+    if (colonnesProducts.length === 0 || colonnesFamilles.length === 0) return;
+
+    const familleParNom = db.prepare(`SELECT id FROM product_families WHERE name = ?`);
+    const creerFamille = db.prepare(`
+      INSERT INTO product_families (name, description, is_active, created_at, updated_at)
+      VALUES (?, ?, 1, ?, ?)
+    `);
+    const maintenant = new Date().toISOString();
+    const idFamille = {};
+    for (const nom of FAMILLES) {
+      const existante = familleParNom.get(nom);
+      if (existante) { idFamille[nom] = existante.id; continue; }
+      creerFamille.run(nom, `Famille ${nom}`, maintenant, maintenant);
+      idFamille[nom] = db.prepare('SELECT last_insert_rowid() AS id').get().id;
+      console.log(`[offline] Famille creee : ${nom}`);
+    }
+
+    // Determine la famille cible d'apres le prefixe du nom du produit.
+    const familleCible = (nom) => {
+      const n = nom.toUpperCase();
+      if (n.startsWith('CHAPATI SAMURAI')) return idFamille['Chapati Samurai'];
+      if (n.startsWith('CHAPATI')) return idFamille['Chapati Classic'];
+      if (n.startsWith('MLEWI SAMURAI')) return idFamille['Mlewi Samurai'];
+      if (n.startsWith('MLEWI')) return idFamille['Mlewi Classic'];
+      return null; // article hors menu (ex: article de test) : jamais touche
+    };
+
+    const tous = db.prepare(`SELECT id, name, famille_id FROM products`).all();
+    const majFamille = db.prepare(`UPDATE products SET famille_id = ?, updated_at = ? WHERE id = ?`);
+    let deplaces = 0;
+    for (const produit of tous) {
+      const cible = familleCible(produit.name);
+      if (cible && cible !== produit.famille_id) {
+        majFamille.run(cible, maintenant, produit.id);
+        deplaces++;
+      }
+    }
+    console.log(deplaces > 0
+      ? `[offline] Articles ranges par famille : ${deplaces}`
+      : '[offline] Familles du menu deja a jour.');
+  } catch (e) {
+    console.error('[offline] Organisation des familles ignoree :', e.message);
+  } finally {
+    try { if (db) db.close(); } catch (e) { /* deja fermee */ }
+  }
+}
+
+organiserFamillesMenu();
+
+// Remplit la "designation legale" (ingredients affiches) des articles composes
+// DUO / TUNA / PRO MAX / KING, d'apres le menu officiel. S'applique aux deux
+// versions (MLEWI et CHAPATI) et aux 3 variantes de viande du PRO MAX.
+// Idempotent : reecrit la meme valeur a chaque demarrage, ne touche jamais
+// aux articles hors de cette liste (ex: "b jhlbhl" garde sa designation).
+function remplirIngredientsMenu() {
+  if (!dbTarget || !fs.existsSync(dbTarget)) return;
+  let DatabaseSync;
+  try { ({ DatabaseSync } = require('node:sqlite')); } catch (e) { return; }
+
+  const INGREDIENTS = {
+    'SAMURAI DUO': 'Oeuf + Escalope + Chawerma + Mozzarella Arbi',
+    'SAMURAI TUNA': 'Omelette + Thon + Jambon + Mozzarella Arbi + Fromage Triangle + Fromage Slice',
+    'SAMURAI KING': 'Omelette + Cordon Bleu + Mozzarella Arbi + Jambon + Fromage Slice + Gruyere',
+    'SAMURAI PRO MAX': 'Oeuf + Omelette + Mozzarella Arbi + Fromage Slice + Gruyere + Viande au choix (Escalope / Chawerma / Kebab)',
+    'SAMURAI PRO MAX KABEB': 'Oeuf + Kebab + Omelette + Mozzarella Arbi + Fromage Slice + Gruyere',
+    'SAMURAI PRO MAX CHAWERMA': 'Oeuf + Chawerma + Omelette + Mozzarella Arbi + Fromage Slice + Gruyere',
+    'SAMURAI PRO MAX ESCALOPE': 'Oeuf + Escalope + Omelette + Mozzarella Arbi + Fromage Slice + Gruyere'
+  };
+
+  let db;
+  try {
+    db = new DatabaseSync(dbTarget);
+    const colonnes = db.prepare(`SELECT name FROM pragma_table_info('products')`).all().map(c => c.name);
+    if (colonnes.length === 0) return;
+
+    const tous = db.prepare(`SELECT id, name FROM products`).all();
+    const maj = db.prepare(`UPDATE products SET designation_legale = ?, updated_at = ? WHERE id = ?`);
+    const maintenant = new Date().toISOString();
+    let ecrits = 0;
+
+    for (const produit of tous) {
+      // "MLEWI SAMURAI PRO MAX KABEB" ou "CHAPATI SAMURAI DUO" -> on retire le
+      // prefixe MLEWI/CHAPATI pour retrouver la cle du dictionnaire.
+      const suffixe = produit.name.toUpperCase().replace(/^(MLEWI|CHAPATI)\s+/, '');
+      const ingredients = INGREDIENTS[suffixe];
+      if (!ingredients) continue;
+      maj.run(ingredients, maintenant, produit.id);
+      ecrits++;
+    }
+    console.log(ecrits > 0
+      ? `[offline] Ingredients renseignes : ${ecrits} article(s).`
+      : '[offline] Aucun article DUO/TUNA/PRO MAX/KING trouve pour les ingredients.');
+  } catch (e) {
+    console.error('[offline] Remplissage des ingredients ignore :', e.message);
+  } finally {
+    try { if (db) db.close(); } catch (e) { /* deja fermee */ }
+  }
+}
+
+remplirIngredientsMenu();
+
 require('./index');

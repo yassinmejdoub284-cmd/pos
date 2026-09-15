@@ -479,7 +479,7 @@ export class ProductsComponent implements OnInit {
           this.loadProducts();
         },
         error: (error) => {
-          this.error = 'Erreur lors de la suppression du produit';
+          this.error = error.error?.error || 'Erreur lors de la suppression du produit';
         }
       });
     }
