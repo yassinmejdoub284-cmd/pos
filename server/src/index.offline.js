@@ -448,19 +448,42 @@ function seedCommentairesGlobaux() {
 
 seedCommentairesGlobaux();
 
-// ── Menu de base (Mlewi / Chapati, Classic / Samurai) ───────────────────────
-// Sur un poste dont le catalogue est encore vide (aucun "PRO MAX" ni
-// "MEXICAN" a decliner), on cree directement les articles du menu affiche
-// en boutique. Chaque article n'est cree qu'une fois (verifie par son nom
-// exact) : un poste qui a deja son propre catalogue, ou dont ces articles
-// ont ete renommes/supprimes volontairement, n'est jamais touche.
-function seedMenuDeBase() {
+// ── Nettoyage d'une erreur de version precedente ────────────────────────────
+// Les tout premiers essais de ce menu automatique l'avaient cree dans la
+// table produits_de_caisse (articles composes), alors que l'ecran de caisse
+// n'affiche que la table products (Gestion des produits) : les articles
+// etaient bien crees en base mais invisibles en caisse. On les retire d'ici
+// une seule fois, uniquement s'ils correspondent exactement aux noms connus
+// de ce menu — jamais un article que le client aurait lui-meme nomme pareil
+// et modifie depuis (on ne touche que ceux encore a l'etat "par defaut").
+function nettoyerAncienEmplacementMenu() {
   if (!dbTarget || !fs.existsSync(dbTarget)) return;
   let DatabaseSync;
   try { ({ DatabaseSync } = require('node:sqlite')); } catch (e) { return; }
+  const NOMS = MENU_DE_BASE_NOMS();
+  let db;
+  try {
+    db = new DatabaseSync(dbTarget);
+    const colonnes = db.prepare(`SELECT name FROM pragma_table_info('produits_de_caisse')`).all().map(c => c.name);
+    if (colonnes.length === 0) return;
+    const placeholders = NOMS.map(() => '?').join(',');
+    const rows = db.prepare(`SELECT id FROM produits_de_caisse WHERE name IN (${placeholders})`).all(...NOMS);
+    if (rows.length === 0) return;
+    const ids = rows.map(r => r.id);
+    const idPlaceholders = ids.map(() => '?').join(',');
+    db.prepare(`DELETE FROM produit_de_caisse_depots WHERE produit_de_caisse_id IN (${idPlaceholders})`).run(...ids);
+    db.prepare(`DELETE FROM produits_de_caisse WHERE id IN (${idPlaceholders})`).run(...ids);
+    console.log(`[offline] Nettoyage : ${ids.length} article(s) retires du mauvais emplacement (produits_de_caisse).`);
+  } catch (e) {
+    console.error('[offline] Nettoyage ignore :', e.message);
+  } finally {
+    try { if (db) db.close(); } catch (e) { /* deja fermee */ }
+  }
+}
 
-  // [nom, prix TTC en dinars]
-  const MENU = [
+// [nom, prix TTC en dinars] — partage entre le nettoyage et la creation.
+function MENU_DE_BASE() {
+  return [
     ['MLEWI OMELETTE', 3.5], ['MLEWI OMELETTE SALAMI', 4.0], ['MLEWI OMELETTE KWIKA', 4.0],
     ['MLEWI OMELETTE JAMBON', 5.0], ['MLEWI OMELETTE THON', 5.5], ['MLEWI OMELETTE COR-BLEU', 6.5],
     ['MLEWI OMELETTE ESCALOPE', 6.5], ['MLEWI OMELETTE CHAWERMA', 6.5], ['MLEWI OMELETTE KABEB', 6.5],
@@ -472,12 +495,40 @@ function seedMenuDeBase() {
     ['CHAPATI SAMURAI MIXTE', 8.5], ['CHAPATI SAMURAI MEXICAN', 9.0], ['CHAPATI SAMURAI DUO', 10.0],
     ['CHAPATI SAMURAI TUNA', 10.0], ['CHAPATI SAMURAI KING', 11.0], ['CHAPATI SAMURAI PRO MAX', 12.0]
   ];
+}
+function MENU_DE_BASE_NOMS() {
+  const VARIANTES = ['Kabeb', 'Chawerma', 'Escalope'];
+  const base = MENU_DE_BASE().map(([nom]) => nom);
+  const variantes = [];
+  for (const nom of base) {
+    if (/pro max|mexican/i.test(nom)) for (const v of VARIANTES) variantes.push(`${nom} ${v}`);
+  }
+  return [...base, ...variantes];
+}
+
+nettoyerAncienEmplacementMenu();
+
+// ── Menu de base (Mlewi / Chapati, Classic / Samurai) ───────────────────────
+// Sur un poste dont le catalogue est encore vide (aucun "PRO MAX" ni
+// "MEXICAN" a decliner), on cree directement les articles du menu affiche
+// en boutique — dans la table "products" (Gestion des produits), la seule
+// que l'ecran de caisse affiche reellement (verifie dans products.js : la
+// requete GET /api/products ne lit jamais produits_de_caisse). Chaque
+// article n'est cree qu'une fois (verifie par son nom exact) : un poste qui
+// a deja son propre catalogue, ou dont ces articles ont ete renommes ou
+// supprimes volontairement, n'est jamais touche.
+function seedMenuDeBase() {
+  if (!dbTarget || !fs.existsSync(dbTarget)) return;
+  let DatabaseSync;
+  try { ({ DatabaseSync } = require('node:sqlite')); } catch (e) { return; }
+
+  const MENU = MENU_DE_BASE();
 
   let db;
   try {
     db = new DatabaseSync(dbTarget);
 
-    const colonnes = db.prepare(`SELECT name FROM pragma_table_info('produits_de_caisse')`).all().map(c => c.name);
+    const colonnes = db.prepare(`SELECT name FROM pragma_table_info('products')`).all().map(c => c.name);
     if (colonnes.length === 0) return; // table absente (schema pas encore a niveau)
 
     // Famille et depot par defaut : on prend "General"/"Samurai" s'ils
@@ -492,15 +543,15 @@ function seedMenuDeBase() {
       return;
     }
 
-    const dejaLa = db.prepare(`SELECT 1 FROM produits_de_caisse WHERE name = ? LIMIT 1`);
+    const dejaLa = db.prepare(`SELECT 1 FROM products WHERE name = ? LIMIT 1`);
     const insererArticle = db.prepare(`
-      INSERT INTO produits_de_caisse (
-        name, product_ids, is_active, created_at, updated_at, barcode, famille_id,
-        is_stockable, is_vrac, is_vraguable, is_wholesale, prix_vente_ttc, tva, unite
-      ) VALUES (?, '', 1, ?, ?, NULL, ?, 1, 0, 0, 0, ?, 19, 'pcs')
+      INSERT INTO products (
+        name, is_stockable, is_vrac, is_vraguable, is_wholesale, requires_approval,
+        famille_id, prix_vente_ttc, tva, unite, created_at, updated_at
+      ) VALUES (?, 1, 0, 0, 0, 0, ?, ?, 19, 'pcs', ?, ?)
     `);
     const insererDepot = db.prepare(`
-      INSERT INTO produit_de_caisse_depots (produit_de_caisse_id, depot_id, created_at, updated_at)
+      INSERT INTO product_depots (product_id, depot_id, created_at, updated_at)
       VALUES (?, ?, ?, ?)
     `);
 
@@ -508,7 +559,7 @@ function seedMenuDeBase() {
     let ajouts = 0;
     for (const [nom, prix] of MENU) {
       if (dejaLa.get(nom)) continue;
-      insererArticle.run(nom, maintenant, maintenant, famille.id, prix);
+      insererArticle.run(nom, famille.id, prix, maintenant, maintenant);
       const nouvelId = db.prepare('SELECT last_insert_rowid() AS id').get().id;
       insererDepot.run(nouvelId, depot.id, maintenant, maintenant);
       ajouts++;
@@ -549,11 +600,11 @@ function seedVariantesViande() {
   try {
     db = new DatabaseSync(dbTarget);
 
-    const colonnes = db.prepare(`SELECT name FROM pragma_table_info('produits_de_caisse')`).all().map(c => c.name);
+    const colonnes = db.prepare(`SELECT name FROM pragma_table_info('products')`).all().map(c => c.name);
     if (colonnes.length === 0) return; // table absente (schema pas encore a niveau)
 
     const base = db.prepare(
-      `SELECT * FROM produits_de_caisse
+      `SELECT * FROM products
        WHERE (lower(name) LIKE ? OR lower(name) LIKE ?)
          AND lower(name) NOT LIKE '%kabeb%'
          AND lower(name) NOT LIKE '%chawerma%'
@@ -561,20 +612,20 @@ function seedVariantesViande() {
          AND lower(name) NOT LIKE '%escalope%'`
     ).all(MOTIFS[0], MOTIFS[1]);
 
-    const dejaLa = db.prepare(`SELECT 1 FROM produits_de_caisse WHERE name = ? LIMIT 1`);
+    const dejaLa = db.prepare(`SELECT 1 FROM products WHERE name = ? LIMIT 1`);
     const insererArticle = db.prepare(`
-      INSERT INTO produits_de_caisse (
-        name, product_ids, is_active, created_at, updated_at, barcode, bundle_price, bundle_size,
-        description, designation_legale, display_index, famille_id, initial_stock, is_stockable,
-        is_vrac, is_vraguable, is_wholesale, max_stock, min_stock, original_product_id, photo,
-        prix_achat, prix_vente_ttc, tva, unite, parent_product_id
+      INSERT INTO products (
+        name, description, barcode, created_at, updated_at, photo, prix_vente_ttc, tva, unite,
+        is_stockable, original_product_id, is_vrac, display_index, bundle_price, bundle_size,
+        is_wholesale, min_margin, requires_approval, famille_id, designation_legale, prix_achat,
+        conversion_ratio, is_vraguable, prix_achat_vrac, prix_vente_vrac
       ) VALUES (
-        ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       )
     `);
-    const depotsArticle = db.prepare(`SELECT depot_id FROM produit_de_caisse_depots WHERE produit_de_caisse_id = ?`);
+    const depotsArticle = db.prepare(`SELECT depot_id FROM product_depots WHERE product_id = ?`);
     const insererDepot = db.prepare(`
-      INSERT INTO produit_de_caisse_depots (produit_de_caisse_id, depot_id, created_at, updated_at)
+      INSERT INTO product_depots (product_id, depot_id, created_at, updated_at)
       VALUES (?, ?, ?, ?)
     `);
 
@@ -587,12 +638,12 @@ function seedVariantesViande() {
         if (dejaLa.get(nouveauNom)) continue;
 
         insererArticle.run(
-          nouveauNom, article.product_ids, article.is_active, maintenant, maintenant,
-          article.bundle_price, article.bundle_size, article.description, article.designation_legale,
-          article.display_index, article.famille_id, article.initial_stock, article.is_stockable,
-          article.is_vrac, article.is_vraguable, article.is_wholesale, article.max_stock,
-          article.min_stock, article.original_product_id, article.photo, article.prix_achat,
-          article.prix_vente_ttc, article.tva, article.unite, article.parent_product_id
+          nouveauNom, article.description, maintenant, maintenant, article.photo,
+          article.prix_vente_ttc, article.tva, article.unite, article.is_stockable,
+          article.original_product_id, article.is_vrac, article.display_index, article.bundle_price,
+          article.bundle_size, article.is_wholesale, article.min_margin, article.requires_approval,
+          article.famille_id, article.designation_legale, article.prix_achat, article.conversion_ratio,
+          article.is_vraguable, article.prix_achat_vrac, article.prix_vente_vrac
         );
         const nouvelId = db.prepare('SELECT last_insert_rowid() AS id').get().id;
 
