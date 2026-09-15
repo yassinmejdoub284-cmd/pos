@@ -448,6 +448,83 @@ function seedCommentairesGlobaux() {
 
 seedCommentairesGlobaux();
 
+// ── Menu de base (Mlewi / Chapati, Classic / Samurai) ───────────────────────
+// Sur un poste dont le catalogue est encore vide (aucun "PRO MAX" ni
+// "MEXICAN" a decliner), on cree directement les articles du menu affiche
+// en boutique. Chaque article n'est cree qu'une fois (verifie par son nom
+// exact) : un poste qui a deja son propre catalogue, ou dont ces articles
+// ont ete renommes/supprimes volontairement, n'est jamais touche.
+function seedMenuDeBase() {
+  if (!dbTarget || !fs.existsSync(dbTarget)) return;
+  let DatabaseSync;
+  try { ({ DatabaseSync } = require('node:sqlite')); } catch (e) { return; }
+
+  // [nom, prix TTC en dinars]
+  const MENU = [
+    ['MLEWI OMELETTE', 3.5], ['MLEWI OMELETTE SALAMI', 4.0], ['MLEWI OMELETTE KWIKA', 4.0],
+    ['MLEWI OMELETTE JAMBON', 5.0], ['MLEWI OMELETTE THON', 5.5], ['MLEWI OMELETTE COR-BLEU', 6.5],
+    ['MLEWI OMELETTE ESCALOPE', 6.5], ['MLEWI OMELETTE CHAWERMA', 6.5], ['MLEWI OMELETTE KABEB', 6.5],
+    ['MLEWI SAMURAI MIXTE', 8.5], ['MLEWI SAMURAI MEXICAN', 9.0], ['MLEWI SAMURAI DUO', 10.0],
+    ['MLEWI SAMURAI TUNA', 10.0], ['MLEWI SAMURAI KING', 11.0], ['MLEWI SAMURAI PRO MAX', 12.0],
+    ['CHAPATI OMELETTE', 3.5], ['CHAPATI OMELETTE SALAMI', 4.0], ['CHAPATI OMELETTE KWIKA', 4.0],
+    ['CHAPATI OMELETTE JAMBON', 5.0], ['CHAPATI OMELETTE THON', 5.5], ['CHAPATI OMELETTE COR-BLEU', 6.5],
+    ['CHAPATI OMELETTE ESCALOPE', 6.5], ['CHAPATI OMELETTE CHAWERMA', 6.5], ['CHAPATI OMELETTE KABEB', 6.5],
+    ['CHAPATI SAMURAI MIXTE', 8.5], ['CHAPATI SAMURAI MEXICAN', 9.0], ['CHAPATI SAMURAI DUO', 10.0],
+    ['CHAPATI SAMURAI TUNA', 10.0], ['CHAPATI SAMURAI KING', 11.0], ['CHAPATI SAMURAI PRO MAX', 12.0]
+  ];
+
+  let db;
+  try {
+    db = new DatabaseSync(dbTarget);
+
+    const colonnes = db.prepare(`SELECT name FROM pragma_table_info('produits_de_caisse')`).all().map(c => c.name);
+    if (colonnes.length === 0) return; // table absente (schema pas encore a niveau)
+
+    // Famille et depot par defaut : on prend "General"/"Samurai" s'ils
+    // existent, sinon le premier disponible. Sans famille ni depot valides
+    // on ne peut rien creer proprement : on abandonne plutot que de deviner.
+    const famille = db.prepare(`SELECT id FROM product_families WHERE name = 'General' LIMIT 1`).get()
+      || db.prepare(`SELECT id FROM product_families ORDER BY id LIMIT 1`).get();
+    const depot = db.prepare(`SELECT id FROM depots WHERE name = 'Samurai' LIMIT 1`).get()
+      || db.prepare(`SELECT id FROM depots ORDER BY id LIMIT 1`).get();
+    if (!famille || !depot) {
+      console.error('[offline] Menu de base ignore : aucune famille/depot en base.');
+      return;
+    }
+
+    const dejaLa = db.prepare(`SELECT 1 FROM produits_de_caisse WHERE name = ? LIMIT 1`);
+    const insererArticle = db.prepare(`
+      INSERT INTO produits_de_caisse (
+        name, product_ids, is_active, created_at, updated_at, barcode, famille_id,
+        is_stockable, is_vrac, is_vraguable, is_wholesale, prix_vente_ttc, tva, unite
+      ) VALUES (?, '', 1, ?, ?, NULL, ?, 1, 0, 0, 0, ?, 19, 'pcs')
+    `);
+    const insererDepot = db.prepare(`
+      INSERT INTO produit_de_caisse_depots (produit_de_caisse_id, depot_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    const maintenant = new Date().toISOString();
+    let ajouts = 0;
+    for (const [nom, prix] of MENU) {
+      if (dejaLa.get(nom)) continue;
+      insererArticle.run(nom, maintenant, maintenant, famille.id, prix);
+      const nouvelId = db.prepare('SELECT last_insert_rowid() AS id').get().id;
+      insererDepot.run(nouvelId, depot.id, maintenant, maintenant);
+      ajouts++;
+    }
+    console.log(ajouts > 0
+      ? `[offline] Menu de base ajoute : ${ajouts} article(s).`
+      : '[offline] Menu de base deja present.');
+  } catch (e) {
+    console.error('[offline] Ajout du menu de base ignore :', e.message);
+  } finally {
+    try { if (db) db.close(); } catch (e) { /* deja fermee */ }
+  }
+}
+
+seedMenuDeBase();
+
 // ── Variantes "au choix de viande" pour les menus composes ─────────────────
 // Le menu affiche des articles a prix fixe dont la viande est "au choix"
 // (SAMURAI PRO MAX, SAMURAI MEXICAN...). En caisse il n'existait qu'UN
