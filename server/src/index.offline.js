@@ -110,6 +110,49 @@ function resetSettingsFile() {
   }
 }
 
+/**
+ * SQLite en mode WAL ecrit les changements recents dans <base>-wal (et un
+ * index dans <base>-shm) avant de les fusionner dans le fichier principal.
+ * Deplacer ou copier UNIQUEMENT le fichier .db sans ces deux fichiers revient
+ * a couper la base en deux : les dernieres ventes/produits restent dans le
+ * -wal abandonne, et le .db qui a voyage seul peut se retrouver incoherent
+ * ("database disk image is malformed"). Toute copie/renommage de base doit
+ * donc toujours emporter -wal et -shm avec elle.
+ */
+function sidecarFiles(dbPath) {
+  return [`${dbPath}-wal`, `${dbPath}-shm`];
+}
+
+function renameDbWithSidecars(from, to) {
+  fs.renameSync(from, to);
+  for (const suffix of ['-wal', '-shm']) {
+    const src = `${from}${suffix}`;
+    const dest = `${to}${suffix}`;
+    if (fs.existsSync(src)) {
+      try { fs.renameSync(src, dest); } catch (e) {
+        console.error(`[offline] Renommage du fichier ${suffix} echoue :`, e.message);
+      }
+    }
+  }
+}
+
+function copyDbWithSidecars(from, to) {
+  fs.copyFileSync(from, to);
+  for (const suffix of ['-wal', '-shm']) {
+    const src = `${from}${suffix}`;
+    const dest = `${to}${suffix}`;
+    // On repart d'une copie propre : si la destination porte un ancien -wal/-shm
+    // qui ne correspond plus au fichier qu'on vient d'ecrire, SQLite peut tenter
+    // de le rejouer par-dessus et corrompre la base. On l'enleve d'abord.
+    try { fs.rmSync(dest, { force: true }); } catch (e) { /* rien a enlever */ }
+    if (fs.existsSync(src)) {
+      try { fs.copyFileSync(src, dest); makeWritable(dest); } catch (e) {
+        console.error(`[offline] Copie du fichier ${suffix} echouee :`, e.message);
+      }
+    }
+  }
+}
+
 /** Copie recursive d'un dossier (sauvegarde des uploads). */
 function copyDir(src, dest) {
   if (!fs.existsSync(src)) return;
@@ -139,7 +182,7 @@ function createBackup(reason) {
 
     let archived = 0;
     if (fs.existsSync(dbTarget)) {
-      fs.copyFileSync(dbTarget, path.join(dir, path.basename(dbTarget)));
+      copyDbWithSidecars(dbTarget, path.join(dir, path.basename(dbTarget)));
       archived++;
     }
     // Parametres, logos et fichiers televerses.
@@ -170,8 +213,8 @@ function createBackup(reason) {
 try {
   const legacyDb = path.join(dataDir, 'pos_patisserie.db');
   if (dbTarget && !fs.existsSync(dbTarget) && fs.existsSync(legacyDb)) {
-    fs.renameSync(legacyDb, dbTarget);
-    console.log('[offline] Base existante reprise :', legacyDb, '->', dbTarget);
+    renameDbWithSidecars(legacyDb, dbTarget);
+    console.log('[offline] Base existante reprise (avec -wal/-shm) :', legacyDb, '->', dbTarget);
   }
 } catch (e) {
   console.error('[offline] Reprise de la base precedente impossible :', e.message);
@@ -208,7 +251,7 @@ try {
       console.error('[offline] Sauvegarde impossible : les donnees existantes sont conservees.');
     } else {
       if (fs.existsSync(template)) {
-        fs.copyFileSync(template, dbTarget);
+        copyDbWithSidecars(template, dbTarget);
         makeWritable(dbTarget);
         console.log('[offline] Base reinitialisee depuis le modele.');
       } else {
@@ -240,7 +283,7 @@ try {
 // ── Premier demarrage : creer la base depuis le modele ─────────────────────
 if (dbTarget && !fs.existsSync(dbTarget)) {
   if (fs.existsSync(template)) {
-    fs.copyFileSync(template, dbTarget);
+    copyDbWithSidecars(template, dbTarget);
     makeWritable(dbTarget);
     console.log('[offline] Base creee depuis le modele :', dbTarget);
   } else {
@@ -252,6 +295,9 @@ if (dbTarget && !fs.existsSync(dbTarget)) {
 // SQLite a besoin d'ecrire la base ET son journal dans le meme dossier.
 if (dbTarget && fs.existsSync(dbTarget)) {
   makeWritable(dbTarget);
+  for (const sidecar of sidecarFiles(dbTarget)) {
+    if (fs.existsSync(sidecar)) makeWritable(sidecar);
+  }
   try {
     fs.accessSync(dbTarget, fs.constants.W_OK);
     const probe = path.join(dataDir, '.write-probe');
@@ -355,5 +401,142 @@ function migrerSchema() {
 }
 
 migrerSchema();
+
+// ── Commentaires par defaut ("sans sauce", etc.) ────────────────────────────
+// Ajoute une seule fois les commentaires globaux demandes, disponibles pour
+// TOUS les produits en caisse. N'ecrase et ne duplique jamais rien : chaque
+// libelle n'est insere que s'il est absent.
+function seedCommentairesGlobaux() {
+  if (!dbTarget || !fs.existsSync(dbTarget)) return;
+  let DatabaseSync;
+  try { ({ DatabaseSync } = require('node:sqlite')); } catch (e) { return; }
+
+  const libelles = [
+    'Sans bssal', 'Sans mayonnaise', 'Sans hrissa', 'Sans mechwiya', 'Sans mel7',
+    'Sans sauce barbecue', 'Sans sauce samurai', 'Sans sauce algerien', 'Sans ketchup',
+    'Kol chy'
+  ];
+
+  let db;
+  try {
+    db = new DatabaseSync(dbTarget);
+    const existe = db.prepare(
+      `SELECT 1 FROM product_comments WHERE label = ? AND product_id IS NULL LIMIT 1`
+    );
+    const inserer = db.prepare(
+      `INSERT INTO product_comments (label, product_id, display_index, is_active, created_at, updated_at)
+       VALUES (?, NULL, NULL, 1, ?, ?)`
+    );
+    const maintenant = new Date().toISOString();
+    let ajouts = 0;
+    for (const label of libelles) {
+      if (existe.get(label)) continue;
+      inserer.run(label, maintenant, maintenant);
+      ajouts++;
+    }
+    console.log(ajouts > 0
+      ? `[offline] Commentaires globaux ajoutes : ${ajouts}`
+      : '[offline] Commentaires globaux deja presents.');
+  } catch (e) {
+    // La table peut ne pas exister encore si migrerSchema a echoue avant :
+    // ce n'est pas bloquant, elle sera cree au prochain demarrage reussi.
+    console.error('[offline] Ajout des commentaires globaux ignore :', e.message);
+  } finally {
+    try { if (db) db.close(); } catch (e) { /* deja fermee */ }
+  }
+}
+
+seedCommentairesGlobaux();
+
+// ── Variantes "au choix de viande" pour les menus composes ─────────────────
+// Le menu affiche des articles a prix fixe dont la viande est "au choix"
+// (SAMURAI PRO MAX, SAMURAI MEXICAN...). En caisse il n'existait qu'UN
+// bouton pour chacun, sans facon d'indiquer quelle viande a ete choisie.
+// On cree ici 3 boutons par article existant (Kabeb / Chawerma / Escalope),
+// clones a l'identique (meme prix, meme famille, meme depot(s)) pour que la
+// cuisine sache directement quelle viande preparer. Rien n'est modifie ni
+// supprime sur l'article d'origine, et un article deja cree n'est jamais
+// recree (idempotent, execute a chaque demarrage).
+function seedVariantesViande() {
+  if (!dbTarget || !fs.existsSync(dbTarget)) return;
+  let DatabaseSync;
+  try { ({ DatabaseSync } = require('node:sqlite')); } catch (e) { return; }
+
+  const VARIANTES = ['Kabeb', 'Chawerma', 'Escalope'];
+  // Motifs des articles de base a decliner, et exclusion des variantes
+  // deja generees (pour ne jamais les redecliner a leur tour).
+  const MOTIFS = ['%pro max%', '%mexican%'];
+  const EXCLUSIONS = VARIANTES.map(v => v.toLowerCase());
+
+  let db;
+  try {
+    db = new DatabaseSync(dbTarget);
+
+    const colonnes = db.prepare(`SELECT name FROM pragma_table_info('produits_de_caisse')`).all().map(c => c.name);
+    if (colonnes.length === 0) return; // table absente (schema pas encore a niveau)
+
+    const base = db.prepare(
+      `SELECT * FROM produits_de_caisse
+       WHERE (lower(name) LIKE ? OR lower(name) LIKE ?)
+         AND lower(name) NOT LIKE '%kabeb%'
+         AND lower(name) NOT LIKE '%chawerma%'
+         AND lower(name) NOT LIKE '%chwaerma%'
+         AND lower(name) NOT LIKE '%escalope%'`
+    ).all(MOTIFS[0], MOTIFS[1]);
+
+    const dejaLa = db.prepare(`SELECT 1 FROM produits_de_caisse WHERE name = ? LIMIT 1`);
+    const insererArticle = db.prepare(`
+      INSERT INTO produits_de_caisse (
+        name, product_ids, is_active, created_at, updated_at, barcode, bundle_price, bundle_size,
+        description, designation_legale, display_index, famille_id, initial_stock, is_stockable,
+        is_vrac, is_vraguable, is_wholesale, max_stock, min_stock, original_product_id, photo,
+        prix_achat, prix_vente_ttc, tva, unite, parent_product_id
+      ) VALUES (
+        ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      )
+    `);
+    const depotsArticle = db.prepare(`SELECT depot_id FROM produit_de_caisse_depots WHERE produit_de_caisse_id = ?`);
+    const insererDepot = db.prepare(`
+      INSERT INTO produit_de_caisse_depots (produit_de_caisse_id, depot_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    const maintenant = new Date().toISOString();
+    let ajouts = 0;
+
+    for (const article of base) {
+      for (const viande of VARIANTES) {
+        const nouveauNom = `${article.name} ${viande}`;
+        if (dejaLa.get(nouveauNom)) continue;
+
+        insererArticle.run(
+          nouveauNom, article.product_ids, article.is_active, maintenant, maintenant,
+          article.bundle_price, article.bundle_size, article.description, article.designation_legale,
+          article.display_index, article.famille_id, article.initial_stock, article.is_stockable,
+          article.is_vrac, article.is_vraguable, article.is_wholesale, article.max_stock,
+          article.min_stock, article.original_product_id, article.photo, article.prix_achat,
+          article.prix_vente_ttc, article.tva, article.unite, article.parent_product_id
+        );
+        const nouvelId = db.prepare('SELECT last_insert_rowid() AS id').get().id;
+
+        for (const d of depotsArticle.all(article.id)) {
+          insererDepot.run(nouvelId, d.depot_id, maintenant, maintenant);
+        }
+        ajouts++;
+        console.log('[offline] Article cree :', nouveauNom);
+      }
+    }
+
+    console.log(ajouts > 0
+      ? `[offline] Variantes viande ajoutees : ${ajouts}`
+      : '[offline] Variantes viande deja presentes (ou aucun article PRO MAX / MEXICAN trouve).');
+  } catch (e) {
+    console.error('[offline] Ajout des variantes viande ignore :', e.message);
+  } finally {
+    try { if (db) db.close(); } catch (e) { /* deja fermee */ }
+  }
+}
+
+seedVariantesViande();
 
 require('./index');

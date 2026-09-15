@@ -1130,41 +1130,72 @@ router.put('/:id', authenticateToken, async (req, res) => {
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const productId = parseInt(req.params.id);
-    
+
     if (isNaN(productId)) {
       return res.status(400).json({ error: 'Invalid product ID' });
     }
-    
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-      include: {
-        saleItems: true,
-        stockMovements: true,
-        stockTransferItems: true
-      }
-    });
-    
+
+    const product = await prisma.product.findUnique({ where: { id: productId } });
     if (!product) {
       return res.status(404).json({ error: 'Produit non trouvé' });
     }
-    
-    if (product.saleItems.length > 0 || product.stockMovements.length > 0 || product.stockTransferItems.length > 0) {
-      return res.status(400).json({ error: 'Impossible de supprimer un produit référencé dans des transactions' });
+
+    // Comptages sur les liens qui BLOQUENT reellement la suppression en base
+    // (relations sans cascade). Les autres (commentaires, prix/depots du
+    // produit, conversions vrac) sont supprimes automatiquement avec le
+    // produit car leur relation est en cascade.
+    const [
+      saleItemsCount,
+      stockMovementsCount,
+      documentItemsCount,
+      inventoryCount,
+      inventoryItemsCount,
+      returnItemsCount,
+      rebutRecordsCount,
+      invoiceLinesCount,
+      bundlesCount
+    ] = await Promise.all([
+      prisma.saleItem.count({ where: { productId } }),
+      prisma.stockMovement.count({ where: { productId } }),
+      prisma.stockDocumentItem.count({ where: { productId } }),
+      prisma.inventory.count({ where: { productId } }),
+      prisma.inventoryItem.count({ where: { productId } }),
+      prisma.returnItem.count({ where: { productId } }),
+      prisma.rebutRecord.count({ where: { productId } }),
+      prisma.invoiceLine.count({ where: { productId } }),
+      prisma.produitDeCaisse.count({
+        where: { OR: [{ originalProductId: productId }, { parentProductId: productId }] }
+      })
+    ]);
+
+    const raisons = [];
+    if (saleItemsCount > 0) raisons.push(`${saleItemsCount} vente(s)`);
+    if (stockMovementsCount > 0) raisons.push(`${stockMovementsCount} mouvement(s) de stock`);
+    if (documentItemsCount > 0) raisons.push(`${documentItemsCount} document(s) de stock`);
+    if (inventoryCount > 0) raisons.push(`${inventoryCount} ligne(s) d'inventaire`);
+    if (inventoryItemsCount > 0) raisons.push(`${inventoryItemsCount} ligne(s) de session d'inventaire`);
+    if (returnItemsCount > 0) raisons.push(`${returnItemsCount} retour(s)`);
+    if (rebutRecordsCount > 0) raisons.push(`${rebutRecordsCount} rebut(s)`);
+    if (invoiceLinesCount > 0) raisons.push(`${invoiceLinesCount} ligne(s) de facture`);
+    if (bundlesCount > 0) raisons.push(`${bundlesCount} produit(s) composé(s)`);
+
+    if (raisons.length > 0) {
+      return res.status(400).json({
+        error: `Impossible de supprimer ce produit : il est référencé par ${raisons.join(', ')}. `
+          + `Désactivez-le plutôt que de le supprimer, ou retirez d'abord ces références.`
+      });
     }
-    
-    await prisma.inventory.deleteMany({
-      where: { productId }
-    });
-    
-    await prisma.product.delete({
-      where: { id: productId }
-    });
-    
+
+    await prisma.product.delete({ where: { id: productId } });
+
     await logAudit(req.user.id, 'products', productId, 'DELETE', product, null);
-    
+
     res.json({ message: 'Produit supprimé avec succès' });
   } catch (error) {
     console.error('Error deleting product:', error);
+    if (error.code === 'P2003' || error.code === 'P2014') {
+      return res.status(400).json({ error: 'Impossible de supprimer ce produit : il est encore référencé ailleurs dans l\'application.' });
+    }
     res.status(500).json({ error: 'Erreur lors de la suppression du produit' + (error?.message ? ' : ' + error.message : ''), code: error?.code });
   }
 });
